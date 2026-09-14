@@ -115,6 +115,8 @@ curl -s -X POST http://localhost:4000/verify
 
 ## View the UI
 
+- **/** — a marketing lander proposed for Engagement Agents' own site (beyond the brief). The product lives under **/app**.
+
 - **/app** — promotion cards (name, brand, image, end date, link to the portal, verification badge), search across title and brand, brand / collection / date-range / verification filters, sort, page-number pagination, and the **By brand** toggle, which groups the current page under each brand's header (hours, website, phone, suite, socials).
 - **/app/promotions/:id** — full description, dates and their provenance, brand panel, verification history.
 - **/app/brands** and **/app/brands/:slug** — every brand with promotion counts and the metadata the portal exposes.
@@ -169,6 +171,10 @@ Only enforced when `AUTH_REQUIRED=true` (the deployed demo). Password for all: `
 | `data.engineer@fieldagent.demo` | data_engineer | read, trigger scrapes and verifications |
 | `account.manager@fieldagent.demo` | account_manager | read |
 | `reviewer@fieldagent.demo` | reviewer | read |
+
+## Deploying
+
+See [railway/README.md](./railway/README.md): three services from this repo, Railway's Redis plugin, and a Neon Postgres. The per-service Dockerfiles there are generated from the root `Dockerfile`.
 
 ## Local development without Docker
 

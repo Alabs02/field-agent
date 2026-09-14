@@ -53,3 +53,13 @@ Cursor pagination (page-number is right for tens of rows and constantly changing
 ## What I'd revisit
 
 The 20 % sample rate is a guess. With real drift data I would replace it with per-promotion staleness (verify oldest-verified first) plus a small always-on canary set, which spends the same budget where drift actually happens.
+
+## Beyond the brief
+
+Everything above was built first and tagged `v1-brief`. The following were added afterwards, in separate commits, and are not required by the brief:
+
+- **Auth and roles.** Better Auth (email + password) on the API with five seeded personas matching the brief's user table: account manager, data engineer, operations, reviewer, super admin. The shared `PERMISSIONS` map is the single RBAC source for the API guard and the UI. `AUTH_REQUIRED=false` keeps the local API open exactly as the brief asks; the deployed demo turns it on.
+- **Run-health dashboard.** Runs page with per-run stacked outcomes, live progress and phase timeline, request counts, and the error table, so "did last night's run actually do what it claims" has a one-screen answer.
+- **Marketing lander at `/`.** A proposal for Engagement Agents' own front door, using their real customers, quotes and figures, with the product behind it. It exists because the brief is, at heart, their "Ensure Compliance" pillar made concrete: the verification band on the lander reads the last real verification run from this deployment.
+- **Docker packaging, CI, Railway.** One multi-target Dockerfile, a GitHub Actions workflow (typecheck, lint, tests, build, compose smoke test that never touches the portal), and per-service Railway config.
+- **Drift demo.** `cli.js drift` edits a few persisted rows so a verification run has real discrepancies to show.
