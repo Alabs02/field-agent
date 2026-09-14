@@ -1,25 +1,13 @@
 "use client";
 
 import { LayoutGrid, Rows3, Search, X } from "lucide-react";
-import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { useQueryStates } from "nuqs";
 import { useEffect, useState, useTransition } from "react";
 import { COLLECTIONS, type BrandWithCount } from "@field-agent/shared";
+import { promotionFilterParsers } from "@/lib/promotion-filters";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-export const promotionFilterParsers = {
-  search: parseAsString.withDefault(""),
-  brand: parseAsString.withDefault(""),
-  collection: parseAsStringLiteral(["", ...COLLECTIONS] as const).withDefault(""),
-  startDate: parseAsString.withDefault(""),
-  endDate: parseAsString.withDefault(""),
-  sort: parseAsStringLiteral(["endingSoon", "newest", "alpha", "brand"] as const).withDefault("endingSoon"),
-  verification: parseAsStringLiteral(["", "clean", "changed", "missing_at_source", "unverifiable", "never"] as const).withDefault(""),
-  view: parseAsStringLiteral(["flat", "brand"] as const).withDefault("flat"),
-  page: parseAsInteger.withDefault(1),
-  pageSize: parseAsInteger.withDefault(24),
-};
 
 const COLLECTION_LABEL: Record<string, string> = { deals: "Deals", style_notes: "Style notes", new_arrivals: "New arrivals", other: "Other" };
 

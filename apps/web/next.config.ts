@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  outputFileTracingRoot: new URL("../../", import.meta.url).pathname.replace(/^/([A-Za-z]:)/, "$1"),
   transpilePackages: ["@field-agent/shared"],
   images: {
     remotePatterns: [

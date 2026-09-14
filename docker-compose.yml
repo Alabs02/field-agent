@@ -1,7 +1,35 @@
 name: field-agent
 
-# Infrastructure services. Application services (migrate, api, worker, web)
-# are appended once they exist; `docker compose up` must bring up everything.
+# `docker compose up` brings up everything: Postgres, Redis, migrations + seed,
+# the API, the worker, and the web UI. No .env is required; every value below
+# has a default. Copy .env.example to .env to override any of them.
+#
+#   web         http://localhost:3000        (product at /app)
+#   api         http://localhost:4000        (/docs, /health, /admin/queues)
+#
+# Optional browser engine:  docker compose --profile browser up
+
+x-app-env: &app-env
+  NODE_ENV: production
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DATABASE_URL: postgres://fieldagent:fieldagent@postgres:5432/fieldagent
+  REDIS_URL: redis://redis:6379
+  PORTAL_ID: briargate
+
+x-scrape-env: &scrape-env
+  SCRAPE_USER_AGENT: ${SCRAPE_USER_AGENT:-FieldAgentBot/0.1 (+https://github.com/Alabs02/field-agent; alabson.inc@gmail.com)}
+  # robots.txt asks for 60s between requests. 2s locally so the first scrape
+  # takes ~2 minutes; see ASSUMPTIONS.md. Set SCRAPE_RESPECT_CRAWL_DELAY=true
+  # (and/or SCRAPE_MIN_DELAY_MS=60000) for the production posture.
+  SCRAPE_MIN_DELAY_MS: ${SCRAPE_MIN_DELAY_MS:-2000}
+  SCRAPE_RESPECT_CRAWL_DELAY: ${SCRAPE_RESPECT_CRAWL_DELAY:-false}
+  SCRAPE_FETCH_TIMEOUT_MS: ${SCRAPE_FETCH_TIMEOUT_MS:-20000}
+  SCRAPE_JOB_TIMEOUT_MS: ${SCRAPE_JOB_TIMEOUT_MS:-5400000}
+  VERIFY_JOB_TIMEOUT_MS: ${VERIFY_JOB_TIMEOUT_MS:-1800000}
+  VERIFY_SAMPLE_RATE: ${VERIFY_SAMPLE_RATE:-0.2}
+  BRAND_REFRESH_HOURS: ${BRAND_REFRESH_HOURS:-24}
+  SNAPSHOT_MODE: ${SNAPSHOT_MODE:-changed}
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -31,6 +59,98 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # One-shot: applies committed migrations, seeds the portal row and demo users.
+  migrate:
+    build:
+      context: .
+      target: api
+    image: field-agent-api
+    command: ["node", "dist/cli.js", "migrate", "seed"]
+    environment:
+      <<: *app-env
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-only-secret-change-me-please-32chars}
+      SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-FieldAgent-Demo-2026!}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      target: api
+    image: field-agent-api
+    ports:
+      - "${API_PORT:-4000}:4000"
+    environment:
+      <<: *app-env
+      API_PORT: 4000
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      AUTH_REQUIRED: ${AUTH_REQUIRED:-false}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-only-secret-change-me-please-32chars}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000/backend}
+      SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-FieldAgent-Demo-2026!}
+      SCRAPE_ON_BOOT: ${SCRAPE_ON_BOOT:-true}
+      VERIFY_SAMPLE_RATE: ${VERIFY_SAMPLE_RATE:-0.2}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-120}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      target: worker
+    image: field-agent-worker
+    environment:
+      <<: [*app-env, *scrape-env]
+      SCRAPE_ENGINE: http
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+  # Same worker on the Playwright image. `docker compose --profile browser up`.
+  worker-browser:
+    profiles: ["browser"]
+    build:
+      context: .
+      target: worker-browser
+    image: field-agent-worker-browser
+    environment:
+      <<: [*app-env, *scrape-env]
+      SCRAPE_ENGINE: playwright
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+  web:
+    build:
+      context: .
+      target: web
+    image: field-agent-web
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      API_URL: http://api:4000
+      AUTH_REQUIRED: ${AUTH_REQUIRED:-false}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:
