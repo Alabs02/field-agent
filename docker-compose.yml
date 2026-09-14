@@ -1,0 +1,37 @@
+name: field-agent
+
+# Infrastructure services. Application services (migrate, api, worker, web)
+# are appended once they exist; `docker compose up` must bring up everything.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: fieldagent
+      POSTGRES_PASSWORD: fieldagent
+      POSTGRES_DB: fieldagent
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fieldagent -d fieldagent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+  redisdata:
