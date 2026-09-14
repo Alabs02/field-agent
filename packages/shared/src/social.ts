@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HttpUrl } from "./primitives.js";
+import { HttpUrl } from "./primitives";
 
 export const SOCIAL_PLATFORMS = [
   "instagram",

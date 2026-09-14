@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { ScrapeOptionsSchema } from "./jobs.js";
-import { PageQuerySchema } from "./pagination.js";
-import { IsoDate, NonEmpty, QueryBool, Uuid } from "./primitives.js";
-import { CollectionSchema, VerificationOutcomeSchema } from "./promotion.js";
+import { ScrapeOptionsSchema } from "./jobs";
+import { PageQuerySchema } from "./pagination";
+import { IsoDate, NonEmpty, QueryBool, Uuid } from "./primitives";
+import { CollectionSchema, VerificationOutcomeSchema } from "./promotion";
 
 export const PromotionSortSchema = z.enum(["endingSoon", "newest", "alpha", "brand"]);
 export type PromotionSort = z.infer<typeof PromotionSortSchema>;

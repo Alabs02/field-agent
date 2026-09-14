@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { VerificationOutcomeSchema } from "./promotion.js";
-import { IsoDateTime, Uuid } from "./primitives.js";
-import { RunStatusSchema, VerificationCountsSchema } from "./runs.js";
+import { VerificationOutcomeSchema } from "./promotion";
+import { IsoDateTime, Uuid } from "./primitives";
+import { RunStatusSchema, VerificationCountsSchema } from "./runs";
 
 /** Fields the verifier compares. Anything not listed is below the discrepancy line. */
 export const FIELD_NAMES = [

@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+  Brand tokens. Plum and pink are Engagement Agents' anchors; the neutrals are
+  warm so the plum reads as ink rather than as a template purple.
+*/
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --color-plum-50: #f6f2f8;
+  --color-plum-100: #ebe2ef;
+  --color-plum-200: #d6c5de;
+  --color-plum-300: #b79dc4;
+  --color-plum-400: #8f6ea1;
+  --color-plum-500: #6b4a7e;
+  --color-plum-600: #533762;
+  --color-plum-700: #422a4f;
+  --color-plum-800: #341b41;
+  --color-plum-900: #24122d;
+  --color-plum-950: #150a1b;
+
+  --color-pink-50: #fef1f5;
+  --color-pink-100: #fde3ec;
+  --color-pink-200: #fbc6d8;
+  --color-pink-300: #f79ab9;
+  --color-pink-400: #f06393;
+  --color-pink-500: #e23d6f;
+  --color-pink-600: #c9245a;
+  --color-pink-700: #a91a4a;
+  --color-pink-800: #8c1a41;
+  --color-pink-900: #751a3a;
+
+  --color-sand-50: #fbfaf8;
+  --color-sand-100: #f5f2ee;
+  --color-sand-200: #e9e3dc;
+  --color-sand-300: #d8cfc5;
+  --color-sand-400: #b8ab9e;
+  --color-sand-500: #978a7c;
+  --color-sand-600: #786c60;
+  --color-sand-700: #5e544b;
+  --color-sand-800: #3f3832;
+  --color-sand-900: #27221e;
+  --color-sand-950: #171310;
+
+  --color-ok-500: #1f9d5f;
+  --color-warn-500: #d98b0b;
+  --color-bad-500: #d33c3c;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
+}
+
+/* Semantic surfaces, swapped by theme. */
+:root {
+  --bg: var(--color-sand-50);
+  --bg-elev: #ffffff;
+  --bg-muted: var(--color-sand-100);
+  --fg: var(--color-sand-950);
+  --fg-muted: var(--color-sand-600);
+  --fg-subtle: var(--color-sand-500);
+  --line: var(--color-sand-200);
+  --line-strong: var(--color-sand-300);
+  --brand: var(--color-plum-800);
+  --brand-fg: #ffffff;
+  --accent: var(--color-pink-500);
+  --accent-fg: #ffffff;
+  --ring: var(--color-pink-400);
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #120b17;
+  --bg-elev: #1a1020;
+  --bg-muted: #22172a;
+  --fg: #f4eef7;
+  --fg-muted: #b6a7bf;
+  --fg-subtle: #8d7f97;
+  --line: #2d2136;
+  --line-strong: #3d2e48;
+  --brand: var(--color-plum-200);
+  --brand-fg: var(--color-plum-950);
+  --accent: var(--color-pink-400);
+  --accent-fg: #1a0710;
+  --ring: var(--color-pink-400);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-elev: var(--bg-elev);
+  --color-bg-muted: var(--bg-muted);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01", "ss03";
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 30%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-muted) 25%, var(--line) 50%, var(--bg-muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}

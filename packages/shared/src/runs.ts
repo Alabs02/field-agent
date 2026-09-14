@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { ScrapeOptionsSchema } from "./jobs.js";
-import { PortalIdSchema } from "./portal.js";
-import { IsoDateTime, Uuid } from "./primitives.js";
+import { ScrapeOptionsSchema } from "./jobs";
+import { PortalIdSchema } from "./portal";
+import { IsoDateTime, Uuid } from "./primitives";
 
 export const RUN_STATUSES = [
   "queued",

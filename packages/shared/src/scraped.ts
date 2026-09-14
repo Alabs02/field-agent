@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { HoursSchema } from "./hours.js";
-import { CollectionSchema } from "./promotion.js";
-import { HttpUrl, IsoDateTime } from "./primitives.js";
-import { SocialLinksSchema } from "./social.js";
+import { HoursSchema } from "./hours";
+import { CollectionSchema } from "./promotion";
+import { HttpUrl, IsoDateTime } from "./primitives";
+import { SocialLinksSchema } from "./social";
 
 /**
  * Contracts between the portal adapter and the persistence layer.

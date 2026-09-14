@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { BrandSchema, BrandSummarySchema, BrandWithCountSchema } from "./brand.js";
-import { PortalIdSchema } from "./portal.js";
-import { HttpUrl, IsoDateTime, Uuid } from "./primitives.js";
+import { BrandSchema, BrandSummarySchema, BrandWithCountSchema } from "./brand";
+import { PortalIdSchema } from "./portal";
+import { HttpUrl, IsoDateTime, Uuid } from "./primitives";
 
 /** The listing page holds three collections; all are ingested as promotions. */
 export const COLLECTIONS = ["deals", "style_notes", "new_arrivals", "other"] as const;

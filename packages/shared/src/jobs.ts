@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { PortalIdSchema } from "./portal.js";
-import { Uuid } from "./primitives.js";
+import { PortalIdSchema } from "./portal";
+import { Uuid } from "./primitives";
 
 export const ScrapeOptionsSchema = z.object({
   /** Walk into each promotion's detail page (FR-1). Off = listing-level data only. */

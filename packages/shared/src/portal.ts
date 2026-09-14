@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HttpUrl, IsoDateTime } from "./primitives.js";
+import { HttpUrl, IsoDateTime } from "./primitives";
 
 /** Only one portal exists in this slice; the literal keeps every payload explicit about its source. */
 export const PortalIdSchema = z.literal("briargate");

@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { HoursSchema } from "./hours.js";
-import { PortalIdSchema } from "./portal.js";
-import { HttpUrl, IsoDateTime, Uuid } from "./primitives.js";
-import { SocialLinksSchema } from "./social.js";
+import { HoursSchema } from "./hours";
+import { PortalIdSchema } from "./portal";
+import { HttpUrl, IsoDateTime, Uuid } from "./primitives";
+import { SocialLinksSchema } from "./social";
 
 /**
  * A brand (store) as served by the API.
