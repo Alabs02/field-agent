@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNotNull, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import type {
   Collection,
   DateSource,
@@ -50,11 +50,13 @@ export async function upsertPromotion(db: Database, w: PromotionWrite): Promise<
   let relinkedFrom: string | null = null;
 
   if (!existing) {
+    // A twin that is still on the listing is a simultaneous duplicate, not a re-post; keep both rows.
     const twin = await db.query.promotions.findFirst({
       where: and(
         eq(promotions.portalId, w.portalId),
         eq(promotions.fingerprint, w.fingerprint),
         ne(promotions.sourceId, w.sourceId),
+        isNotNull(promotions.removedAt),
       ),
       orderBy: [desc(promotions.lastSeenAt)],
     });

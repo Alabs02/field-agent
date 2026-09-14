@@ -26,7 +26,7 @@ export const scrapeRoutes =
         config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
         schema: {
           tags: ["jobs"],
-          body: ScrapeRequestSchema.optional(),
+          body: ScrapeRequestSchema.nullable().optional(),
           response: { 200: EnqueueResponseSchema, 202: EnqueueResponseSchema, 503: ApiErrorSchema },
         },
       },

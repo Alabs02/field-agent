@@ -78,3 +78,16 @@ describe("url", () => {
     expect(isAffiliateUrl("https://www.ulta.com/")).toBe(false);
   });
 });
+
+describe("affiliate patterns", () => {
+  it("catches Impact, FlexLinks, ShopStyle and CJ links seen on the portal", () => {
+    for (const u of [
+      "https://fabletics.fjbu.net/V0JqE",
+      "https://track.flexlinkspro.com/g.ashx?foid=1.2417",
+      "https://shopstyle.it/l/uLiD",
+      "https://www.tkqlhce.com/click-7274402-11428273",
+    ])
+      expect(isAffiliateUrl(u)).toBe(true);
+    expect(isAffiliateUrl("https://www.williams-sonoma.com/")).toBe(false);
+  });
+});

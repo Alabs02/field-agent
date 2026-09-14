@@ -35,7 +35,7 @@ export const verifyRoutes =
         config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
         schema: {
           tags: ["jobs"],
-          body: VerifyRequestSchema.optional(),
+          body: VerifyRequestSchema.nullable().optional(),
           response: { 200: EnqueueResponseSchema, 202: EnqueueResponseSchema, 503: ApiErrorSchema },
         },
       },

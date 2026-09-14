@@ -1,6 +1,7 @@
 import type { Database } from "@field-agent/db";
 import { snapshotsRepo } from "@field-agent/db";
 import {
+  isScrapeError,
   RobotsDisallowedError,
   sha256,
   type FetchResult,
@@ -39,11 +40,22 @@ export function makeFetcher(deps: FetcherDeps): Fetcher {
     await deps.throttle.acquire(host, deps.signal);
     deps.onRequest();
 
-    const res = await deps.engine.fetchHtml(url, {
+    const opts = {
       kind,
       signal: deps.signal,
       conditional: prior ? { etag: prior.etag, lastModified: prior.lastModified } : undefined,
-    });
+    };
+    let res: FetchResult;
+    try {
+      res = await deps.engine.fetchHtml(url, opts);
+    } catch (err) {
+      // One polite retry for transient failures (timeouts, 5xx, resets); it waits its turn like any request.
+      if (!(isScrapeError(err) && err.retryable)) throw err;
+      deps.log.warn({ url, code: err.code }, "transient fetch error; retrying once");
+      await deps.throttle.acquire(host, deps.signal);
+      deps.onRequest();
+      res = await deps.engine.fetchHtml(url, opts);
+    }
     deps.log.debug({ url, status: res.status, notModified: res.notModified, kind }, "fetched");
 
     if (res.notModified) {

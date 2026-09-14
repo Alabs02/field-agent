@@ -27,6 +27,8 @@ export class HttpEngine implements ScrapeEngine {
       throwHttpErrors: false,
       responseType: "text",
       useHeaderGenerator: false,
+      // The portal (Lucee behind a load balancer) stalls reused HTTP/2 streams; plain HTTP/1.1 is reliable.
+      http2: false,
       retry: { limit: 0 },
       timeout: { request: opts.timeoutMs },
       headers: {

@@ -52,10 +52,21 @@ export const AFFILIATE_HOSTS = new Set([
   "rstyle.me",
 ]);
 
+/** Affiliate networks that hand out per-retailer subdomains (Impact, FlexLinks, ShopStyle, CJ, Rakuten, Awin, Skimlinks). */
+const AFFILIATE_PATTERNS = [
+  /(^|\.)(fjbu\.net|sjv\.io|pxf\.io|7eer\.net|evyy\.net|ojrq\.net|ihnbn\.net|8ocm8\.net)$/i,
+  /(^|\.)flexlinkspro\.com$/i,
+  /(^|\.)shopstyle\.it$/i,
+  /(^|\.)linksynergy\.com$/i,
+  /(^|\.)(awin1\.com|shareasale\.com|prf\.hn|redirectingat\.com|skimresources\.com|rstyle\.me)$/i,
+  /(^|\.)(tkqlhce\.com|jdoqocy\.com|anrdoezrs\.net|dpbolvw\.net|kqzyfj\.com)$/i,
+];
+
 export function isAffiliateUrl(url: string | null): boolean {
   if (!url) return false;
   try {
-    return AFFILIATE_HOSTS.has(new URL(url).hostname.toLowerCase());
+    const host = new URL(url).hostname.toLowerCase();
+    return AFFILIATE_HOSTS.has(host) || AFFILIATE_PATTERNS.some((re) => re.test(host));
   } catch {
     return false;
   }
