@@ -89,7 +89,7 @@ services:
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       AUTH_REQUIRED: ${AUTH_REQUIRED:-false}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-only-secret-change-me-please-32chars}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000/backend}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://api:4000}
       SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-FieldAgent-Demo-2026!}
       SCRAPE_ON_BOOT: ${SCRAPE_ON_BOOT:-true}
       VERIFY_SAMPLE_RATE: ${VERIFY_SAMPLE_RATE:-0.2}

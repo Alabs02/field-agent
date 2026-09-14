@@ -1,9 +1,11 @@
 import Link from "next/link";
 import type * as React from "react";
+import type { Role } from "@field-agent/shared";
 import { SidebarNav } from "./sidebar-nav";
 import { ThemeToggle } from "./theme-toggle";
+import { UserMenu } from "./user-menu";
 
-export function AppShell({ children, authRequired, user }: { children: React.ReactNode; authRequired: boolean; user: { name: string; role: string } | null }) {
+export function AppShell({ children, authRequired, user }: { children: React.ReactNode; authRequired: boolean; user: { name: string; role: Role } | null }) {
   return (
     <div className="flex min-h-dvh">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-bg-elev md:flex">
@@ -25,21 +27,14 @@ export function AppShell({ children, authRequired, user }: { children: React.Rea
             <Link href="/app" className="text-sm font-semibold">field-agent</Link>
           </div>
           <div className="hidden text-xs text-fg-muted md:block">
-            {authRequired ? (
-              user ? (
-                <span>
-                  Signed in as <span className="font-medium text-fg">{user.name}</span> · {user.role.replace("_", " ")}
-                </span>
-              ) : (
-                <span>Not signed in</span>
-              )
-            ) : (
+            {authRequired ? null : (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5">
                 <span className="size-1.5 rounded-full bg-emerald-500" /> Local mode · auth off
               </span>
             )}
           </div>
           <div className="flex items-center gap-1">
+            {authRequired ? <UserMenu user={user} /> : null}
             <ThemeToggle />
           </div>
         </header>

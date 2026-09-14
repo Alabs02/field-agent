@@ -10,9 +10,11 @@ import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { FastifyAdapter } from "@bull-board/fastify";
 import Fastify, { type FastifyInstance } from "fastify";
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
+import { createAuth, makeSessionResolver, mountAuth, type Auth } from "./auth.js";
 import type { AppDeps } from "./deps.js";
 import { makeGuard, type SessionResolver } from "./plugins/auth-guard.js";
 import { registerErrorHandling } from "./plugins/error-handler.js";
+import { adminRoutes } from "./routes/admin.js";
 import { brandRoutes } from "./routes/brands.js";
 import { healthRoutes } from "./routes/health.js";
 import { promotionRoutes } from "./routes/promotions.js";
@@ -22,13 +24,16 @@ import { verifyRoutes } from "./routes/verify.js";
 
 export interface BuildAppOptions {
   deps: AppDeps;
-  /** Resolves the signed-in user; the auth commit provides the real one. */
+  /** Override the session resolver (tests). Defaults to Better Auth. */
   resolveSession?: SessionResolver;
+  /** Provide a prebuilt auth instance (the CLI shares it with seeding). */
+  auth?: Auth;
   logger?: boolean | object;
 }
 
-export async function buildApp({ deps, resolveSession, logger }: BuildAppOptions): Promise<FastifyInstance> {
+export async function buildApp({ deps, resolveSession, auth: authIn, logger }: BuildAppOptions): Promise<FastifyInstance> {
   const { env } = deps;
+  const auth = authIn ?? createAuth(env, deps.db);
   const raw = Fastify({
     logger: logger ?? { level: env.LOG_LEVEL },
     trustProxy: true,
@@ -58,7 +63,7 @@ export async function buildApp({ deps, resolveSession, logger }: BuildAppOptions
     allowList: env.NODE_ENV === "test" ? () => true : undefined,
   });
   await app.register(underPressure, {
-    maxEventLoopDelay: 1000,
+    maxEventLoopDelay: 2000,
     maxEventLoopUtilization: 0.98,
     message: "service under pressure",
     retryAfter: 5,
@@ -80,7 +85,15 @@ export async function buildApp({ deps, resolveSession, logger }: BuildAppOptions
   });
   await app.register(swaggerUi, { routePrefix: "/docs" });
 
-  const guard = makeGuard({ required: env.AUTH_REQUIRED, resolve: resolveSession ?? (async () => null) });
+  const resolve = resolveSession ?? makeSessionResolver(auth);
+  const guard = makeGuard({ required: env.AUTH_REQUIRED, resolve });
+  mountAuth(raw, auth);
+  // Populate request.user for every request when auth is on, so /me and logs can see it.
+  if (env.AUTH_REQUIRED) {
+    raw.addHook("preHandler", async (request) => {
+      if (request.user == null && !request.url.startsWith("/api/auth/")) request.user = await resolve(request);
+    });
+  }
 
   // Bull Board (queues dashboard). Guarded like an admin route.
   const boardAdapter = new FastifyAdapter();
@@ -100,6 +113,7 @@ export async function buildApp({ deps, resolveSession, logger }: BuildAppOptions
   await app.register(scrapeRoutes(deps, guard));
   await app.register(verifyRoutes(deps, guard));
   await app.register(runRoutes(deps, guard));
+  await app.register(adminRoutes(deps, guard));
 
   return app;
 }

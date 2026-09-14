@@ -7,7 +7,8 @@ const started = Date.now();
 export const healthRoutes =
   (deps: AppDeps): FastifyPluginAsyncZod =>
   async (app) => {
-    app.get("/health", { schema: { tags: ["ops"], response: { 200: HealthSchema, 503: HealthSchema } } }, async (_req, reply) => {
+    // Only 200 is schema-bound: under-pressure answers 503 with its own body when the event loop is saturated.
+    app.get("/health", { schema: { tags: ["ops"], response: { 200: HealthSchema } } }, async (_req, reply) => {
       const [db, redis] = await Promise.all([
         deps.pingDb().then(() => true, () => false),
         deps.redis.ping().then((r) => r === "PONG", () => false),
@@ -20,6 +21,7 @@ export const healthRoutes =
         uptimeSec: Math.round((Date.now() - started) / 1000),
         authRequired: deps.env.AUTH_REQUIRED,
       };
-      return reply.status(ok ? 200 : 503).send(body);
+      // 503 is deliberately outside the typed response map (see above); the body shape is the same.
+      return reply.status((ok ? 200 : 503) as 200).send(body);
     });
   };
