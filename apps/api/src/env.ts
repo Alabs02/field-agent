@@ -6,7 +6,8 @@ const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   LOG_LEVEL: z.string().default("info"),
   DATABASE_URL: z.string().min(1),
-  DATABASE_URL_UNPOOLED: z.string().optional(),
+  // Empty in .env.example; an empty string must not win over DATABASE_URL.
+  DATABASE_URL_UNPOOLED: z.string().optional().transform((v) => v || undefined),
   REDIS_URL: z.string().min(1),
   API_PORT: z.coerce.number().int().positive().default(4000),
   API_HOST: z.string().default("0.0.0.0"),

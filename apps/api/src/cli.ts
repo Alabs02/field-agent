@@ -5,23 +5,29 @@
  *   node dist/cli.js migrate      apply committed migrations
  *   node dist/cli.js seed         seed the portal row and the five demo users
  *   node dist/cli.js migrate seed both, in order
+ *   node dist/cli.js credentials  print the demo accounts table without touching the database
  *   node dist/cli.js drift        edit a few persisted rows so the next verify has discrepancies
  *   node dist/cli.js undrift      restore them
  */
 import { applyDrift, createDb, runMigrations, seedPortals, undoDrift } from "@field-agent/db";
 import { BRIARGATE_PORTAL } from "@field-agent/shared";
 import { createAuth, seedDemoUsers } from "./auth.js";
+import { renderCredentials } from "./credentials.js";
 import { loadEnv } from "./env.js";
 
 const env = loadEnv();
 const commands = process.argv.slice(2);
 if (commands.length === 0) {
-  console.error("usage: cli <migrate|seed|drift|undrift> [...]");
+  console.error("usage: cli <migrate|seed|credentials|drift|undrift> [...]");
   process.exit(2);
 }
 
 for (const cmd of commands) {
   switch (cmd) {
+    case "credentials": {
+      console.log(renderCredentials(env));
+      break;
+    }
     case "migrate": {
       await runMigrations(env.DATABASE_URL_UNPOOLED ?? env.DATABASE_URL);
       console.log("[cli] migrations applied");
@@ -35,6 +41,7 @@ for (const cmd of commands) {
         const auth = createAuth(env, db);
         const users = await seedDemoUsers(auth, db, env.SEED_DEMO_PASSWORD);
         console.log(`[cli] demo users: ${users.created} created, ${users.existing} existing`);
+        console.log(renderCredentials(env));
       } finally {
         await close();
       }

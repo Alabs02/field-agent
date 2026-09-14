@@ -5,10 +5,10 @@
   "type": "module",
   "description": "Fastify API: typed routes, job enqueueing, run status, verification reports, auth.",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx --env-file-if-exists=../../.env watch src/server.ts",
     "build": "tsup",
     "start": "node dist/server.js",
-    "cli": "tsx src/cli.ts",
+    "cli": "tsx --env-file-if-exists=../../.env src/cli.ts",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src test",
     "test": "vitest run"

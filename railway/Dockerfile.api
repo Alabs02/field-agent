@@ -61,5 +61,5 @@ WORKDIR /repo/apps/api
 EXPOSE 4000
 # BusyBox wget ships with alpine; no package install needed.
 HEALTHCHECK --interval=10s --timeout=5s --retries=10 CMD wget -qO- http://127.0.0.1:4000/health || exit 1
-CMD ["node", "dist/server.js"]
+CMD ["sh", "-c", "node dist/cli.js migrate seed && node dist/server.js"]
 

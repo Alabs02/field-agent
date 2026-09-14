@@ -43,6 +43,8 @@ No `.env` is needed; every setting has a default. The stack comes up in this ord
 
 On first boot, with no completed scrape in the database, the API enqueues one scrape automatically (`SCRAPE_ON_BOOT=true`). Real promotions appear in the UI about two minutes later. Restarts never re-scrape on their own.
 
+The `migrate` service prints the five demo accounts as it seeds them (`docker compose logs migrate`); they are the same as the table under [Demo accounts](#demo-accounts) below. Locally the API is open, so sign-in is optional; the accounts exist so you can see the role-gated parts of the UI.
+
 ## Trigger a scrape
 
 ```bash
@@ -164,19 +166,26 @@ All of them are documented inline in [.env.example](./.env.example). The ones wo
 
 ## Demo accounts
 
-Only enforced when `AUTH_REQUIRED=true` (the deployed demo). Password for all: `FieldAgent-Demo-2026!` (override with `SEED_DEMO_PASSWORD`).
+Seeded by `migrate` on `docker compose up`, by `pnpm bootstrap`, and on every Railway deploy. The same table is printed to the terminal each time (`pnpm demo:credentials` prints it again). Password for all five: `FieldAgent-Demo-2026!` (override with `SEED_DEMO_PASSWORD`). Sign in at `/login`; the login page also lists them.
 
 | Email | Role | Can |
 |---|---|---|
-| `super.admin@fieldagent.demo` | super_admin | everything, including the queue dashboard and user admin |
-| `operations@fieldagent.demo` | operations | read, trigger scrapes and verifications |
-| `data.engineer@fieldagent.demo` | data_engineer | read, trigger scrapes and verifications |
-| `account.manager@fieldagent.demo` | account_manager | read |
-| `reviewer@fieldagent.demo` | reviewer | read |
+| `super.admin@fieldagent.demo` | Super admin | read · scrape · verify · admin (queue dashboard, users) |
+| `operations@fieldagent.demo` | Operations | read · scrape · verify |
+| `data.engineer@fieldagent.demo` | Data engineer | read · scrape · verify |
+| `account.manager@fieldagent.demo` | Account manager | read |
+| `reviewer@fieldagent.demo` | Reviewer | read |
+
+Roles are enforced only when `AUTH_REQUIRED=true` (the hosted demo). Locally the brief's open API is the default; signing in still switches the UI to that role's view.
 
 ## Deploying
 
-See [railway/README.md](./railway/README.md): three services from this repo, Railway's Redis plugin, and a Neon Postgres. The per-service Dockerfiles there are generated from the root `Dockerfile`. The hosted demo URL is added here once it is up.
+```bash
+railway login                  # once, in your browser
+pnpm railway:deploy            # project, Redis, Postgres, api, worker, web, domains, variables, deploy
+```
+
+[scripts/railway-deploy.sh](./scripts/railway-deploy.sh) is idempotent and prints the two public URLs and the demo sign-in when it finishes. Set `DATABASE_URL` (a Neon pooled URL) before running it to use Neon instead of Railway's Postgres. Details, variables, and the manual dashboard path are in [railway/README.md](./railway/README.md); the per-service Dockerfiles there are generated from the root `Dockerfile`. The hosted demo URL is added here once it is up.
 
 CI runs the same `docker compose up --build --wait` on a clean Ubuntu runner on every push (with `SCRAPE_ON_BOOT=false`, so CI never touches the portal) and checks `/health` on both services plus the API's empty-state and validation responses.
 
@@ -184,11 +193,11 @@ CI runs the same `docker compose up --build --wait` on a clean Ubuntu runner on 
 
 ```bash
 pnpm install
-docker compose up -d postgres redis          # only the datastores
-cp .env.example .env
-pnpm db:migrate && pnpm db:seed
+pnpm bootstrap                               # datastores in Docker, .env, migrate, seed, prints the demo accounts
 pnpm dev                                     # api :4000, worker, web :3000
 ```
+
+`pnpm bootstrap` starts only Postgres and Redis in Docker (host ports 5433 and 6380), copies `.env.example` to `.env` if you have none, applies migrations, and seeds the portal row and demo accounts. The apps read the root `.env` on `pnpm dev`. Other useful scripts: `pnpm seed` (migrate + seed again), `pnpm demo:credentials`, `pnpm demo:drift` / `pnpm demo:undrift`.
 
 ## Tests
 
