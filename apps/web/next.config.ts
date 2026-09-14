@@ -1,8 +1,12 @@
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
+
+// Monorepo root, so `output: "standalone"` traces workspace files correctly.
+const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  outputFileTracingRoot: new URL("../../", import.meta.url).pathname.replace(/^/([A-Za-z]:)/, "$1"),
+  outputFileTracingRoot: repoRoot,
   transpilePackages: ["@field-agent/shared"],
   images: {
     remotePatterns: [
