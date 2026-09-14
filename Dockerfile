@@ -11,7 +11,7 @@ ARG NODE_IMAGE=node:22-alpine
 
 # ---------------------------------------------------------------------------
 FROM ${NODE_IMAGE} AS base
-RUN apk add --no-cache libc6-compat && corepack enable && corepack prepare pnpm@10.18.0 --activate \
+RUN corepack enable && corepack prepare pnpm@10.18.0 --activate \
  && pnpm config set fetch-retries 6 && pnpm config set fetch-retry-maxtimeout 120000 && pnpm config set network-concurrency 8
 WORKDIR /repo
 ENV PNPM_HOME=/pnpm
