@@ -31,6 +31,8 @@ COPY --from=pruner /repo/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY .npmrc ./.npmrc
 RUN pnpm install --frozen-lockfile
 COPY --from=pruner /repo/out/full/ .
+# turbo prune does not carry root config files; the web tsconfig extends this one.
+COPY tsconfig.base.json ./tsconfig.base.json
 # Web build needs no API at build time: every app route is dynamic.
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm turbo run build --filter=api --filter=worker --filter=web
