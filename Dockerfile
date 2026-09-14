@@ -47,7 +47,6 @@ RUN pnpm install --frozen-lockfile --prod --filter api --filter worker
 FROM ${NODE_IMAGE} AS api
 ENV NODE_ENV=production
 WORKDIR /repo
-RUN apk add --no-cache wget
 COPY --from=prod-deps /repo/node_modules ./node_modules
 COPY --from=prod-deps /repo/apps/api/node_modules ./apps/api/node_modules
 COPY --from=prod-deps /repo/apps/api/package.json ./apps/api/package.json
@@ -57,6 +56,7 @@ COPY --from=installer /repo/packages/db/drizzle ./apps/api/dist/drizzle
 USER node
 WORKDIR /repo/apps/api
 EXPOSE 4000
+# BusyBox wget ships with alpine; no package install needed.
 HEALTHCHECK --interval=10s --timeout=5s --retries=10 CMD wget -qO- http://127.0.0.1:4000/health || exit 1
 CMD ["node", "dist/server.js"]
 
@@ -93,7 +93,6 @@ ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /repo
-RUN apk add --no-cache wget
 COPY --from=installer /repo/apps/web/.next/standalone ./
 COPY --from=installer /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=installer /repo/apps/web/public ./apps/web/public
