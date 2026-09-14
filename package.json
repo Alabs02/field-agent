@@ -40,5 +40,6 @@
       "msgpackr-extract",
       "header-generator"
     ]
-  }
+  },
+  "type": "module"
 }
