@@ -11,7 +11,7 @@ ARG NODE_IMAGE=node:22-alpine
 
 # ---------------------------------------------------------------------------
 FROM ${NODE_IMAGE} AS base
-RUN apk add --no-cache libc6-compat && corepack enable
+RUN apk add --no-cache libc6-compat && corepack enable && corepack prepare pnpm@10.18.0 --activate
 WORKDIR /repo
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH

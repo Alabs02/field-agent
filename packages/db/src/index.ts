@@ -12,3 +12,4 @@ export * as snapshotsRepo from "./repos/snapshots.js";
 export type { PromotionWithBrand, PromotionWrite, UpsertOutcome } from "./repos/promotions.js";
 export type { FindingWrite } from "./repos/findings.js";
 export type { SnapshotWrite } from "./repos/snapshots.js";
+export { applyDrift, undoDrift } from "./drift.js";
