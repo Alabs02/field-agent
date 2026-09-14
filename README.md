@@ -1,5 +1,7 @@
 # field-agent
 
+[![ci](https://github.com/Alabs02/field-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Alabs02/field-agent/actions/workflows/ci.yml)
+
 An engagement agent that walks the mall for you. It scrapes the promotions a shopping-center portal is running, enriches each one with the brand's hours, website, and social links, re-verifies what it stored against the live site, and serves it all through a typed API and a UI built for the people who act on it.
 
 > Take-home for Engagement Agents: **Promotions Aggregator (Single-Mall MVP)**. Target portal: [The Promenade Shops at Briargate](https://www.thepromenadeshopsatbriargate.com/sales/).
@@ -174,7 +176,9 @@ Only enforced when `AUTH_REQUIRED=true` (the deployed demo). Password for all: `
 
 ## Deploying
 
-See [railway/README.md](./railway/README.md): three services from this repo, Railway's Redis plugin, and a Neon Postgres. The per-service Dockerfiles there are generated from the root `Dockerfile`.
+See [railway/README.md](./railway/README.md): three services from this repo, Railway's Redis plugin, and a Neon Postgres. The per-service Dockerfiles there are generated from the root `Dockerfile`. The hosted demo URL is added here once it is up.
+
+CI runs the same `docker compose up --build --wait` on a clean Ubuntu runner on every push (with `SCRAPE_ON_BOOT=false`, so CI never touches the portal) and checks `/health` on both services plus the API's empty-state and validation responses.
 
 ## Local development without Docker
 
@@ -210,7 +214,7 @@ One request at a time per host, spaced by `SCRAPE_MIN_DELAY_MS` through a Redis 
 
 ## Hours spent
 
-_To be filled in at submission._
+Core brief (everything up to the `v1-brief` tag): **__ hours**. Extras beyond the brief (auth and roles, runs dashboard, lander, CI, Railway config, drift demo): **__ hours**. The commit history is the trail; nothing was squashed.
 
 ## License
 
