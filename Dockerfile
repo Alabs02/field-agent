@@ -28,8 +28,7 @@ COPY --from=pruner /repo/out/json/ .
 COPY --from=pruner /repo/out/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=pruner /repo/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY .npmrc ./.npmrc
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 COPY --from=pruner /repo/out/full/ .
 # Web build needs no API at build time: every app route is dynamic.
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -41,8 +40,7 @@ COPY --from=pruner /repo/out/json/ .
 COPY --from=pruner /repo/out/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=pruner /repo/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY .npmrc ./.npmrc
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --frozen-lockfile --prod --filter api --filter worker
+RUN pnpm install --frozen-lockfile --prod --filter api --filter worker
 
 # ---------------------------------------------------------------------------
 FROM ${NODE_IMAGE} AS api
