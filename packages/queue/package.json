@@ -1,0 +1,23 @@
+{
+  "name": "@field-agent/queue",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "BullMQ queue factories, Redis connection, and job option defaults. Node-only.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@field-agent/shared": "workspace:*",
+    "bullmq": "^6.3.6",
+    "ioredis": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "typescript": "~5.9.3"
+  }
+}

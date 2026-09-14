@@ -1,0 +1,44 @@
+{
+  "name": "field-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An engagement agent that walks the mall for you: scrape, verify, and serve shopping-center promotions.",
+  "license": "MIT",
+  "packageManager": "pnpm@10.18.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "turbo run typecheck lint test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "pnpm --filter @field-agent/db generate",
+    "db:migrate": "pnpm --filter @field-agent/db migrate",
+    "db:seed": "pnpm --filter @field-agent/db seed",
+    "demo:drift": "pnpm --filter @field-agent/db drift"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
+    "prettier": "^3.6.2",
+    "turbo": "^2.10.12",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^5.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "@tailwindcss/oxide",
+      "unrs-resolver",
+      "msgpackr-extract",
+      "header-generator"
+    ]
+  }
+}

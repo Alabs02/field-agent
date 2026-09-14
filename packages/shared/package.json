@@ -1,0 +1,22 @@
+{
+  "name": "@field-agent/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Zod contracts shared by scraper, queue, API, and UI. Browser-safe: no Node-only imports.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.0"
+  }
+}
