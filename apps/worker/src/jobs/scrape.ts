@@ -57,7 +57,7 @@ const pct = (phase: ScrapePhase, fraction: number) => {
 
 export async function processScrapeJob(ctx: WorkerContext, job: Job<ScrapeJobPayload>): Promise<ScrapeCounts> {
   const payload = ScrapeJobPayloadSchema.parse(job.data);
-  const { db, env, adapter } = ctx;
+  const { db, env } = ctx;
   const log = ctx.log.child({ runId: payload.runId, jobId: job.id, attempt: job.attemptsMade + 1, queue: "scrape" });
   const runRow = await runsRepo.getScrapeRun(db, payload.runId);
   if (!runRow) throw new UnrecoverableError(`scrape run ${payload.runId} not found`);
