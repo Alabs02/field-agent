@@ -24,7 +24,7 @@ describe("effectiveStatus", () => {
   });
 });
 
-function run(partial: Partial<VerificationRun> & { counts?: Partial<VerificationRun["counts"]> }): VerificationRun {
+function run(partial: Omit<Partial<VerificationRun>, "counts"> & { counts?: Partial<VerificationRun["counts"]> }): VerificationRun {
   return {
     type: "verify",
     id: "5f9a2c1e-6b8d-4f1a-9c2b-7d3e4f5a6b7c",
