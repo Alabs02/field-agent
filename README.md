@@ -43,7 +43,7 @@ No `.env` is needed; every setting has a default. The stack comes up in this ord
 
 On first boot, with no completed scrape in the database, the API enqueues one scrape automatically (`SCRAPE_ON_BOOT=true`). Real promotions appear in the UI about two minutes later. Restarts never re-scrape on their own.
 
-The `migrate` service prints the five demo accounts as it seeds them (`docker compose logs migrate`); they are the same as the table under [Demo accounts](#demo-accounts) below. Locally the API is open, so sign-in is optional; the accounts exist so you can see the role-gated parts of the UI.
+The `migrate` service prints the five demo accounts as it seeds them (`docker compose logs migrate`); they are the same as the table under [Demo accounts](#demo-accounts) below. Locally auth is off, as the brief asks, so nothing needs a sign-in. To try the roles locally: `AUTH_REQUIRED=true docker compose up`.
 
 ## Trigger a scrape
 
@@ -176,7 +176,7 @@ Seeded by `migrate` on `docker compose up`, by `pnpm bootstrap`, and on every Ra
 | `account.manager@fieldagent.demo` | Account manager | read |
 | `reviewer@fieldagent.demo` | Reviewer | read |
 
-Roles are enforced only when `AUTH_REQUIRED=true` (the hosted demo). Locally the brief's open API is the default; signing in still switches the UI to that role's view.
+Roles exist only when `AUTH_REQUIRED=true` (the hosted demo, or `AUTH_REQUIRED=true docker compose up` locally). With it off, the brief's default, the API and the UI are open and the login page says so.
 
 ## Deploying
 

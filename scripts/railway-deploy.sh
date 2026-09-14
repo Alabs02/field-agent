@@ -86,7 +86,7 @@ ensure_service worker \
 ensure_service web \
   "RAILWAY_DOCKERFILE_PATH=railway/Dockerfile.web" \
   "NODE_ENV=production" "PORT=3000" "HOSTNAME=0.0.0.0" \
-  "API_URL=http://api.railway.internal:4000" "AUTH_REQUIRED=true"
+  "API_URL=http://api.railway.internal:4000" "AUTH_REQUIRED=true" "SEED_DEMO_PASSWORD=$DEMO_PW"
 
 # --- public domains -------------------------------------------------------------
 domain_of() {

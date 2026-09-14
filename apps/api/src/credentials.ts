@@ -54,8 +54,8 @@ export function renderCredentials(env: Pick<Env, "SEED_DEMO_PASSWORD" | "WEB_ORI
     `  password   ${env.SEED_DEMO_PASSWORD}`,
     `  sign in    ${signIn}`,
     env.AUTH_REQUIRED
-      ? "  auth       required (AUTH_REQUIRED=true): the UI and POST routes need a session"
-      : "  auth       optional here (AUTH_REQUIRED=false): the API is open, sign in to see role-gated UI",
+      ? "  auth       on (AUTH_REQUIRED=true): the UI and the POST routes need a session"
+      : "  auth       off (AUTH_REQUIRED=false): API and UI are open, no sign-in needed; set AUTH_REQUIRED=true to try the roles",
     "",
   ];
   return out.join("\n");

@@ -27,7 +27,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <h1 className="text-xl font-semibold tracking-tight">Sign in</h1>
       <p className="mt-1 text-sm text-fg-muted">Five demo accounts, one per persona from the brief. Pick one to fill the form.</p>
       <Suspense>
-        <LoginForm next={next && next.startsWith("/") ? next : "/app"} />
+        <LoginForm next={next && next.startsWith("/") ? next : "/app"} demoPassword={process.env.SEED_DEMO_PASSWORD || "FieldAgent-Demo-2026!"} />
       </Suspense>
     </Shell>
   );

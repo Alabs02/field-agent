@@ -70,6 +70,7 @@ PORT                    = 3000
 API_URL                 = http://api.railway.internal:4000
 NEXT_PUBLIC_API_URL     = https://<api domain>
 AUTH_REQUIRED           = true
+SEED_DEMO_PASSWORD      = same as api (shown on the login page)
 ```
 
 ## Manual path (dashboard)

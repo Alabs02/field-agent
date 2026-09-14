@@ -7,7 +7,6 @@ import { ROLE_LABELS, type Role } from "@field-agent/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const DEMO_PASSWORD = "FieldAgent-Demo-2026!";
 const DEMO: Array<{ email: string; role: Role }> = [
   { email: "super.admin@fieldagent.demo", role: "super_admin" },
   { email: "operations@fieldagent.demo", role: "operations" },
@@ -16,7 +15,8 @@ const DEMO: Array<{ email: string; role: Role }> = [
   { email: "reviewer@fieldagent.demo", role: "reviewer" },
 ];
 
-export function LoginForm({ next }: { next: string }) {
+/** demoPassword comes from SEED_DEMO_PASSWORD on the server, so the page, the seed, and the README always agree. */
+export function LoginForm({ next, demoPassword }: { next: string; demoPassword: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,7 +55,7 @@ export function LoginForm({ next }: { next: string }) {
             type="button"
             onClick={() => {
               setEmail(d.email);
-              setPassword(DEMO_PASSWORD);
+              setPassword(demoPassword);
             }}
             className="rounded-full border border-line-strong px-2.5 py-1 text-xs hover:border-accent hover:text-accent"
           >
@@ -75,7 +75,7 @@ export function LoginForm({ next }: { next: string }) {
       <Button type="submit" variant="accent" disabled={busy} className="mt-2">
         {busy ? <Loader2 className="animate-spin" /> : null} Sign in
       </Button>
-      <p className="text-xs text-fg-subtle">Demo password for every account: <code className="font-mono">{DEMO_PASSWORD}</code></p>
+      <p className="text-xs text-fg-subtle">Demo password for every account: <code className="font-mono">{demoPassword}</code></p>
     </form>
   );
 }
