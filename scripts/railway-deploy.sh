@@ -16,6 +16,8 @@
 #   BETTER_AUTH_SECRET     default: generated
 #   SEED_DEMO_PASSWORD     default: FieldAgent-Demo-2026!
 #   SCRAPE_MIN_DELAY_MS    default: 60000 (the production posture: honor Crawl-delay)
+#   WEB_DOMAIN_LABEL       default: field-agent      → https://field-agent.up.railway.app
+#   API_DOMAIN_LABEL       default: field-agent-api  → https://field-agent-api.up.railway.app
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -102,6 +104,20 @@ domain_of() {
 log "Public domains"
 API_DOMAIN="$(domain_of api 4000)"
 WEB_DOMAIN="$(domain_of web 3000)"
+
+# Prefer readable labels over the generated "web-production-1a2b" ones. A
+# taken label is not fatal: the generated domain stays.
+rename_domain() {
+  local svc="$1" current="$2" label="$3"
+  [ "$current" = "$label.up.railway.app" ] && { echo "$current"; return; }
+  if railway domain update "$current" --service "$svc" --domain "$label" >/dev/null 2>&1; then
+    echo "$label.up.railway.app"
+  else
+    echo "$current"
+  fi
+}
+API_DOMAIN="$(rename_domain api "$API_DOMAIN" "${API_DOMAIN_LABEL:-field-agent-api}")"
+WEB_DOMAIN="$(rename_domain web "$WEB_DOMAIN" "${WEB_DOMAIN_LABEL:-field-agent}")"
 echo "  api  https://$API_DOMAIN"
 echo "  web  https://$WEB_DOMAIN"
 
