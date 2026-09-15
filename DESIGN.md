@@ -126,7 +126,7 @@ Compared fields are title, description, image identity, start and end date (day 
 - BullMQ flows for multi-portal fan-out
 - Trigram search index (`ILIKE` is fine at this size)
 - Playwright UI tests
-- Scheduling (a repeatable job is one option away)
+- Scheduling (a repeatable job is one option away; added later, see [Operations dashboard](#operations-dashboard-added-2026-09-15))
 
 ## What I'd revisit
 
@@ -141,6 +141,18 @@ Everything above was built first and tagged `v1-brief`. The following were added
 - **Marketing lander at `/`.** A proposal for Engagement Agents' own front door, using their real customers, quotes and figures, with the product behind it. It exists because the brief is, at heart, their "Ensure Compliance" pillar made concrete: the verification band on the lander reads the last real verification run from this deployment.
 - **Docker packaging, CI, Railway.** One multi-target Dockerfile, a GitHub Actions workflow (typecheck, lint, tests, build, compose smoke test that never touches the portal), and per-service Railway config.
 - **Drift demo.** `cli.js drift` edits a few persisted rows so a verification run has real discrepancies to show.
+
+### Operations dashboard (added 2026-09-15)
+
+The largest addition, built as one connected layer over the v1 pipeline. It answers three questions on one screen (what is listed, what changed, does the pipeline need attention) and adds the controls an operator reaches for next. The design choices worth defending:
+
+- **One launch path.** `apps/api/src/services/launch.ts` is the only way a run gets created: the UI, the API, retries, scheduled stages and the boot scrape all go through it. It takes a short Redis lock so two launches cannot race, reconciles rows whose queue job vanished (marked failed, never silently reused), reuses an active run only when the options are identical, refuses a second run of the same type otherwise, and applies the reviewer bounds and cooldown server-side. The dialog in the UI is a preview of the same policy, not a second copy of it.
+- **The scheduler lives in the API, not in a worker.** A BullMQ job scheduler (`upsertJobScheduler`, so a restart never registers it twice) ticks every 30 seconds inside the API process. Each tick reconciles run health (a stale heartbeat becomes "stalled" even when no worker is alive to say so), starts a cycle if one is due and nothing is busy, and advances running cycles from the durable `schedule_cycles` row plus the `cycle_id` on each run, so an API restart resumes mid-cycle without launching a stage twice. Cycles verify first and scrape second: evidence of drift is written before stored values change. A due cycle that finds work active is recorded as skipped and the schedule moves on; no catch-up backlog.
+- **The audit trail is a database trigger, not application code.** Every write to promotions, brands, runs and findings fires `capture_operational_change()` in the same transaction, so a record and its history cannot disagree, and a second `audit_append_only` trigger rejects updates and deletes. Application code only adds the events a row change cannot express (drift summary, source block, cycle finished, export, role change), each under a deterministic key so a retried job cannot duplicate it. The trade-off is disk: each event keeps the full before/after row JSON.
+- **Cancellation is cooperative.** The API stamps `cancel_requested_at`, removes the queue job when no worker holds it, and otherwise reports "cancellation requested". The worker polls the row once a second and aborts its signal, which every fetch and sleep already honours; the run ends "cancelled", not "failed". A retry links the new run to the original through `parent_run_id` and never touches the original.
+- **Verification covers less than it looks, and says so.** Each promotion records what its last check covered (listing only or detail page) and findings snapshot the promotion's title at check time. A listing-only "clean" can never clear a prior discrepancy; only detail evidence can. The baseline guard compares `updated_at` at millisecond precision, because a JavaScript Date cannot express the microseconds Postgres stores.
+- **Politeness additions.** A per-host in-flight lease on top of the spacing lock, bounded jitter, `Retry-After` (seconds or HTTP-date) folded into the shared cooldown, robots rules and crawl delay applied before the next discovery request, challenge pages classified as `source_blocked` with the HTML retained, and a listing-completeness gate so a partially readable listing never marks records removed. The Playwright engine waits for portal-specific content, blocks images, fonts and off-host requests, and routes its remaining sub-requests through the same budget.
+- **Copy.** No em dashes in anything the application authors, and no bare placeholder glyphs: a missing value says what it is ("Not available", "Not checked", "Not recorded"). A unit test enforces the first rule.
 
 ---
 

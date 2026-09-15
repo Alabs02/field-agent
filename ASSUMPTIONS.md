@@ -40,6 +40,15 @@ Interpretations of the brief where it was ambiguous, plus things discovered whil
 | [21](#21-better-auths-base-url-is-the-apis-own-origin) | Live run | Build and deploy | Better Auth's base URL must be the API origin |
 | [22](#22-turbo-prune-drops-root-config-files) | Live run | Build and deploy | `turbo prune` drops root config files; CI caught it |
 | [23](#23-the-worker-image-never-booted-a-leftover-dev-process-hid-it) | Live run | Build and deploy | The worker image never booted; a leftover dev process hid it |
+| [24](#24-schedules-can-be-configured-by-four-roles-not-two) | Operations | Auth and deploy | Four roles configure the schedule; account managers read it |
+| [25](#25-a-stalled-run-is-cancelled-before-it-is-retried) | Operations | Data semantics | A stalled run is cancelled before it is retried |
+| [26](#26-removed-promotions-are-re-checked-for-14-days) | Operations | Politeness | Removed promotions are re-checked for 14 days |
+| [27](#27-exports-stop-at-10000-records) | Operations | Data semantics | Exports over 10,000 records are refused, not truncated |
+| [28](#28-the-listing-is-one-document-pagination-signals-suppress-removals) | Operations | Portal facts | One-document listing; pagination signals suppress removals |
+| [29](#29-browser-mode-sub-requests-share-the-politeness-budget) | Operations | Politeness | Browser-mode sub-requests share the politeness budget |
+| [30](#30-audit-events-keep-the-full-row) | Operations | Data semantics | Audit events keep the full before/after row |
+| [31](#31-history-starts-at-migration-0001) | Operations | Data semantics | No history is reconstructed before migration 0001 |
+| [32](#32-the-overviews-needs-attention-counts-listed-records-only) | Operations | Data semantics | Overview coverage and attention tiles scope to listed records |
 
 ## Portal facts
 
@@ -196,6 +205,64 @@ The Dockerfile copies it explicitly. Found by CI, not locally: the local Docker 
 **Both bundled apps are built by tsup as ESM. The scraper's `got-scraping` depends on `http2-wrapper`, a CommonJS module that calls `require("http2")` at load, and esbuild's ESM shim throws `Dynamic require of "http2" is not supported` for that.**
 
 The compose worker crash-looped from its first build, but a `tsx` dev worker left running on the host from earlier in the day was connected to the same Redis and processed every job, so the local acceptance looked green. Railway, with nothing else attached to its Redis, showed the crash immediately. Fix: a `createRequire` banner in both tsup configs. Hardening: the worker now writes a readiness file when both queues are ready, the image has a health check on it, and CI asserts the worker is healthy, so a crash-looping worker fails `docker compose up --wait` instead of passing it.
+
+## Operations dashboard
+
+Decisions made while adding the overview, schedules, audit trail, notifications and exports (2026-09-15). The brief did not ask for these; the semantics below are choices, not requirements.
+
+#### 24. Schedules can be configured by four roles, not two
+
+**Reviewers, operations, data engineers and super admins can change the shared schedule; account managers can read it.**
+
+The original plan named reviewers and super admins only. Operations and data engineers already own the run controls, and a schedule is the same decision made ahead of time, so excluding them would send an operator to a super admin for a routine change. `PERMISSIONS` in `packages/shared/src/auth.ts` is still the single source and the contract test asserts the four.
+
+#### 25. A stalled run is cancelled before it is retried
+
+**Retry is offered for failed, partially failed and cancelled runs. A stalled run (no heartbeat for 60 seconds) must be cancelled first.**
+
+"Stalled" means the API stopped hearing from the worker, not that the worker is dead: a slow database or a worker mid-restart can produce it. Retrying immediately could put two workers on one run. Cancelling first stamps the request the worker honours if it is alive, and the queue removes the job if it is not; the retry then starts from a known state.
+
+#### 26. Removed promotions are re-checked for 14 days
+
+**Verification re-fetches the detail page of removed promotions for `VERIFY_REMOVED_WINDOW_DAYS` (14) after they leave the listing, then leaves them alone.**
+
+Re-checking every removal forever would cost one detail request per historical removal on every run, at 60 seconds each in production. Fourteen days catches the portal re-posting a campaign (item 17 shows it happens) without an unbounded budget. A targeted re-verification from the promotion page still works at any age.
+
+#### 27. Exports stop at 10,000 records
+
+**An export whose filter matches more than 10,000 records is refused with a message that says how many matched, rather than truncated.**
+
+The screens paginate at 100 per request; the export walks every page and checks the total did not move between pages, so a large export is both slow and racy. The cap is far above this portal's size and keeps the promise "the file matches the screen" honest.
+
+#### 28. The listing is one document; pagination signals suppress removals
+
+**This portal publishes its whole catalogue on one page. The parser asserts that and treats `rel="next"`, `data-next-page` or an infinite-scroll marker as "incomplete listing".**
+
+An incomplete listing (rejected rows, or a pagination mechanism this adapter does not implement) still persists the rows it read but never marks stored promotions as removed, and verification records "unverifiable: listing_incomplete" instead of "gone". Supporting pagination is a new adapter feature, not a configuration flag.
+
+#### 29. Browser-mode sub-requests share the politeness budget
+
+**With `SCRAPE_ENGINE=playwright`, images, fonts, media and off-host requests are blocked, and every remaining same-host sub-request (scripts, styles, XHR) waits for the same per-host spacing as a page fetch.**
+
+A page that pulls a dozen assets therefore takes a dozen spacing intervals at `Crawl-delay: 60`, which is slow but honest: the crawl delay is a per-request promise to the site, not a per-page one. Browser mode is an escape hatch for a portal that stops rendering server-side, not the everyday engine. The Compose file now has one worker service whose image target follows `WORKER_TARGET`, so browser mode never starts the HTTP worker beside it (the earlier `--profile browser` did).
+
+#### 30. Audit events keep the full row
+
+**Trigger-written events store `to_jsonb(OLD)` and `to_jsonb(NEW)` for the changed row, including a promotion's `source_payload`.**
+
+Deciding which columns matter belongs to the reader, and the readers differ (a brand's hours change is noise to one person and the point to another), so the trigger keeps everything and the UI hides the bookkeeping columns. At this portal's size that is a few hundred kilobytes per scrape; for many portals the trigger would keep a column allow-list instead.
+
+#### 31. History starts at migration 0001
+
+**No audit events are synthesised for runs, promotions or brands that existed before the operations migration.**
+
+Reconstructed history would have to invent actors and timestamps. The overview shows when detailed history began, older runs simply have no events, and the notification feed starts empty.
+
+#### 32. The overview's "needs attention" counts listed records only
+
+**Inventory tiles (listed, ending soon, needs attention, verification coverage) all scope to `removed_at is null`, so `listing checks + detail checks + unchecked = listed` holds on every screen.**
+
+A removed promotion flagged "gone from source" is exactly what removal means; counting it as needing attention would make the coverage numbers disagree with the inventory number next to them. Removed records stay reachable through the promotions page's presence filter and the audit trail.
 
 ---
 
