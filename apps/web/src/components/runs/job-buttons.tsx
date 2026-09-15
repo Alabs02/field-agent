@@ -6,8 +6,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { EnqueueResponseSchema } from "@field-agent/shared";
 import { Button, type ButtonProps } from "@/components/ui/button";
+import { useCan } from "@/components/operations/access";
 
-async function enqueue(path: "/scrape" | "/verify", body?: unknown) {
+export async function enqueue(path: "/scrape" | "/verify", body?: unknown) {
   const res = await fetch(`/backend${path}`, {
     method: "POST",
     headers: body ? { "content-type": "application/json" } : {},
@@ -24,6 +25,8 @@ async function enqueue(path: "/scrape" | "/verify", body?: unknown) {
 export function ScrapeButton({ force = false, ...props }: ButtonProps & { force?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const allowed = useCan(force ? "advanced" : "scrape");
+  if (!allowed) return null;
   return (
     <Button
       variant="accent"
@@ -33,10 +36,10 @@ export function ScrapeButton({ force = false, ...props }: ButtonProps & { force?
         try {
           const r = await enqueue("/scrape", force ? { force: true } : undefined);
           toast.success(r.reused ? "A scrape is already running" : "Scrape queued", {
-            description: `Job ${r.jobId.slice(0, 8)}… — follow it on the Runs page.`,
+            description: `Job ${r.jobId.slice(0, 8)} queued. Follow it on the Runs page.`,
             action: { label: "Open", onClick: () => router.push(`/app/runs/${r.runId}`) },
           });
-          router.refresh();
+          router.push(`/app/runs/${r.runId}`);
         } catch (e) {
           toast.error("Could not queue the scrape", { description: e instanceof Error ? e.message : String(e) });
         } finally {
@@ -50,9 +53,11 @@ export function ScrapeButton({ force = false, ...props }: ButtonProps & { force?
   );
 }
 
-export function VerifyButton(props: ButtonProps) {
+export function VerifyButton({ full = false, promotionIds, ...props }: ButtonProps & { full?: boolean; promotionIds?: string[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const allowed = useCan(full ? "advanced" : "verify");
+  if (!allowed) return null;
   return (
     <Button
       variant="default"
@@ -60,12 +65,12 @@ export function VerifyButton(props: ButtonProps) {
       onClick={async () => {
         setBusy(true);
         try {
-          const r = await enqueue("/verify");
+          const r = await enqueue("/verify", { ...(full ? { sampleRate: 1 } : {}), ...(promotionIds ? { promotionIds } : {}) });
           toast.success(r.reused ? "A verification is already running" : "Verification queued", {
             description: "The report appears on the Verification page when it finishes.",
             action: { label: "Open", onClick: () => router.push(`/app/verify/${r.runId}`) },
           });
-          router.refresh();
+          router.push(`/app/verify/${r.runId}`);
         } catch (e) {
           toast.error("Could not queue the verification", { description: e instanceof Error ? e.message : String(e) });
         } finally {
@@ -74,7 +79,7 @@ export function VerifyButton(props: ButtonProps) {
       }}
       {...props}
     >
-      {busy ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Run verification
+      {busy ? <Loader2 className="animate-spin" /> : <ShieldCheck />} {full ? "Full detail check" : promotionIds ? "Re-verify selected" : "Run verification"}
     </Button>
   );
 }

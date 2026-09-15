@@ -4,42 +4,55 @@ import type { Role } from "@field-agent/shared";
 import { SidebarNav } from "./sidebar-nav";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
+import { AccessProvider } from "../operations/access";
+import { ActiveRunIndicator } from "../operations/active-run";
+import { Notifications } from "../operations/notifications";
 
 export function AppShell({ children, authRequired, user }: { children: React.ReactNode; authRequired: boolean; user: { name: string; role: Role } | null }) {
   return (
-    <div className="flex min-h-dvh">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-bg-elev md:flex">
-        <div className="flex h-14 items-center gap-2 border-b border-line px-5">
-          <Link href="/app" className="flex items-center gap-2">
-            <span className="grid size-7 place-items-center rounded-md bg-brand text-brand-fg text-xs font-bold">fa</span>
-            <span className="text-sm font-semibold tracking-tight">field-agent</span>
-          </Link>
+    <AccessProvider role={user?.role ?? null} authRequired={authRequired}>
+      <div className="flex min-h-dvh">
+        <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-bg-elev md:flex">
+          <div className="flex h-14 items-center gap-2 border-b border-line px-5">
+            <Link href="/app" className="flex items-center gap-2">
+              <span className="grid size-7 place-items-center rounded-md bg-brand text-brand-fg text-xs font-bold">fa</span>
+              <span className="text-sm font-semibold tracking-tight">field-agent</span>
+            </Link>
+          </div>
+          <SidebarNav role={user?.role ?? null} />
+          <div className="mt-auto border-t border-line p-4 text-xs text-fg-muted">
+            <p className="font-medium text-fg">The Promenade Shops at Briargate</p>
+            <p>Colorado Springs, CO · America/Denver</p>
+          </div>
+        </aside>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="flex h-14 items-center justify-between gap-3 border-b border-line bg-bg-elev/80 px-4 backdrop-blur md:px-6">
+            <div className="flex items-center gap-2 md:hidden">
+              <Link href="/app" className="text-sm font-semibold">
+                field-agent
+              </Link>
+            </div>
+            <div className="hidden items-center gap-3 text-xs text-fg-muted md:flex">
+              {authRequired ? null : (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5">
+                  <span className="size-1.5 rounded-full bg-emerald-500" /> Local mode · auth off
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <ActiveRunIndicator />
+              <Notifications compact />
+              {authRequired ? <UserMenu user={user} /> : null}
+              <ThemeToggle />
+            </div>
+          </header>
+          <details className="border-b border-line md:hidden">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Navigation</summary>
+            <SidebarNav role={user?.role ?? null} />
+          </details>
+          <main className="flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
         </div>
-        <SidebarNav role={user?.role ?? null} />
-        <div className="mt-auto border-t border-line p-4 text-xs text-fg-muted">
-          <p className="font-medium text-fg">The Promenade Shops at Briargate</p>
-          <p>Colorado Springs, CO · America/Denver</p>
-        </div>
-      </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between gap-3 border-b border-line bg-bg-elev/80 px-4 backdrop-blur md:px-6">
-          <div className="flex items-center gap-2 md:hidden">
-            <Link href="/app" className="text-sm font-semibold">field-agent</Link>
-          </div>
-          <div className="hidden text-xs text-fg-muted md:block">
-            {authRequired ? null : (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5">
-                <span className="size-1.5 rounded-full bg-emerald-500" /> Local mode · auth off
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-1">
-            {authRequired ? <UserMenu user={user} /> : null}
-            <ThemeToggle />
-          </div>
-        </header>
-        <main className="flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
       </div>
-    </div>
+    </AccessProvider>
   );
 }

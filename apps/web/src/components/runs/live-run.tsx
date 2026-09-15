@@ -10,8 +10,8 @@ import { fmtDuration, relative } from "@/lib/format";
 /** Polls one scrape job while it is running and refreshes the server-rendered page when it ends. */
 export function LiveScrapeRun({ initial }: { initial: ScrapeJobStatus }) {
   const router = useRouter();
-  const active = !isTerminalStatus(initial.effectiveStatus) && initial.effectiveStatus !== "stalled";
-  const { data, live } = usePoll(active ? `/scrape/${initial.id}` : null, ScrapeJobStatusSchema, {
+  const active = !isTerminalStatus(initial.effectiveStatus);
+  const { data, live, error } = usePoll(active ? `/scrape/${initial.id}` : null, ScrapeJobStatusSchema, {
     initial,
     until: (s) => isTerminalStatus(s.effectiveStatus),
   });
@@ -23,6 +23,8 @@ export function LiveScrapeRun({ initial }: { initial: ScrapeJobStatus }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {error && <p role="alert" className="rounded-md border border-red-300 p-3 text-sm">Monitoring disconnected: {error}. Displaying the last received status.</p>}
+      {run.cancelRequestedAt && active && <p role="status">Cancellation requested. Waiting for the worker to acknowledge.</p>}
       <div className="flex flex-wrap items-center gap-3">
         <RunStatusPill status={run.effectiveStatus} pulse />
         <PhaseTimeline phase={run.phase} status={run.effectiveStatus} />

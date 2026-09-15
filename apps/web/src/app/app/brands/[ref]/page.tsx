@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { BrandDetailSchema } from "@field-agent/shared";
+import { ChangeHistory } from "@/components/operations/change-history";
 import { BrandGroupHeader } from "@/components/promotions/brand-group";
 import { PromotionCard } from "@/components/promotions/promotion-card";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -45,6 +46,7 @@ export default async function BrandPage({ params }: { params: Promise<{ ref: str
           ))}
         </div>
       )}
+      <ChangeHistory entityId={brand.id} emptyText="No changes recorded for this brand since detailed history began. Store details are compared on every scrape; a change would appear here." />
     </>
   );
 }

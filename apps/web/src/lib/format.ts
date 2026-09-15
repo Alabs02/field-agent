@@ -5,17 +5,17 @@ import type { DayKey, Hours } from "@field-agent/shared";
 export const PORTAL_TZ = "America/Denver";
 
 export function fmtDay(iso: string | null, tz = PORTAL_TZ): string {
-  if (!iso) return "—";
+  if (!iso) return "Not available";
   return formatInTimeZone(new Date(iso), tz, "MMM d");
 }
 
 export function fmtDayLong(iso: string | null, tz = PORTAL_TZ): string {
-  if (!iso) return "—";
+  if (!iso) return "Not available";
   return formatInTimeZone(new Date(iso), tz, "EEE, MMM d, yyyy");
 }
 
 export function fmtDateTime(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "Not available";
   return formatInTimeZone(new Date(iso), PORTAL_TZ, "MMM d, HH:mm");
 }
 
@@ -70,7 +70,7 @@ export function todayHours(hours: Hours | null, tz = PORTAL_TZ, now = new Date()
 }
 
 export function fmtDuration(ms: number | null): string {
-  if (ms == null) return "—";
+  if (ms == null) return "Not recorded";
   if (ms < 1000) return `${ms} ms`;
   const s = Math.round(ms / 1000);
   if (s < 60) return `${s}s`;
@@ -85,4 +85,15 @@ export function hostOf(url: string | null): string | null {
   } catch {
     return url;
   }
+}
+
+/**
+ * Turn a form value (datetime-local "2026-09-15T04:00", a date, or an ISO string)
+ * into the offset-qualified ISO string the API's IsoDateTime fields accept.
+ * Returns undefined for blank or unparseable input so the filter is simply omitted.
+ */
+export function toIsoParam(value: string | undefined | null): string | undefined {
+  if (!value) return undefined;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : undefined;
 }

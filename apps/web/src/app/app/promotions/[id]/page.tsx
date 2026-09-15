@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { FindingSchema, PromotionDetailSchema } from "@field-agent/shared";
+import { ChangeHistory } from "@/components/operations/change-history";
 import { BrandGroupHeader } from "@/components/promotions/brand-group";
 import { VerificationBadge } from "@/components/promotions/verification-badge";
 import { PageHeader } from "@/components/shared/page-header";
@@ -55,7 +56,10 @@ export default async function PromotionPage({ params }: { params: Promise<{ id: 
             <Fact label="Ends" value={fmtDayLong(p.endsAt)} />
             <Fact label="Date source" value={p.dateSource === "jsonld" ? "JSON-LD (authoritative)" : p.dateSource === "listing_serial" ? "Listing serial (fallback)" : "None"} />
             <Fact label="First seen" value={fmtDateTime(p.firstSeenAt)} />
-            <Fact label="Last scraped" value={relative(p.scrapedAt)} />
+            <Fact label="Last seen on source" value={relative(p.lastSeenAt)} />
+            <Fact label="Detail page fetched" value={p.detailFetchedAt ? relative(p.detailFetchedAt) : "Never"} />
+            <Fact label="Last verification" value={p.verification.lastVerifiedAt ? `${relative(p.verification.lastVerifiedAt)} (${p.verification.coverage === "detail" ? "detail check" : "listing check only"})` : "Not checked yet"} />
+            <Fact label="Changed at last check" value={p.verification.changedFields.length ? p.verification.changedFields.join(", ") : p.verification.lastOutcome ? "Nothing" : "Not checked"} />
             <Fact label="Portal deal id" value={<span className="font-mono text-xs">{p.sourceId}</span>} />
           </dl>
           <BrandGroupHeader brand={p.brand} count={1} />
@@ -64,6 +68,7 @@ export default async function PromotionPage({ params }: { params: Promise<{ id: 
 
       <section className="mt-8">
         <h2 className="mb-2 text-base font-semibold">Verification history</h2>
+        <p className="mb-3 text-sm text-fg-muted">Each line is what the source showed at that moment. A listing check confirms presence and listing fields only.</p>
         {findings.length === 0 ? (
           <p className="text-sm text-fg-muted">Not verified yet.</p>
         ) : (
@@ -72,17 +77,18 @@ export default async function PromotionPage({ params }: { params: Promise<{ id: 
               <li key={f.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
                 <span className="text-fg-muted tabular">{fmtDateTime(f.createdAt)}</span>
                 <Badge tone={f.kind === "clean" ? "ok" : f.kind === "changed" ? "warn" : f.kind === "missing_at_source" ? "bad" : "neutral"}>{f.kind.replace(/_/g, " ")}</Badge>
-                <span className="text-fg-muted">via {f.evidence.checkedVia}</span>
+                <span className="text-fg-muted">{f.evidence.checkedVia === "detail" ? "detail check" : "listing check"}</span>
                 {f.fieldChanges.length ? <span className="text-fg-muted">changed: {f.fieldChanges.map((c) => c.field).join(", ")}</span> : null}
                 {f.reason ? <span className="font-mono text-xs text-fg-muted">{f.reason}</span> : null}
-                <Link href={`/app/verify/${f.id}`} className="ml-auto text-xs underline opacity-0">
-                  report
+                <Link href={`/app/verify?runId=${f.runId}`} className="ml-auto text-xs underline-offset-4 hover:underline">
+                  open report
                 </Link>
               </li>
             ))}
           </ul>
         )}
       </section>
+      <ChangeHistory entityId={p.id} title="Stored record history" emptyText="No stored changes recorded since detailed history began. Scrapes that find the same content leave no event." />
     </>
   );
 }
