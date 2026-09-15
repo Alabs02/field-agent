@@ -122,7 +122,7 @@ echo "  api  https://$API_DOMAIN"
 echo "  web  https://$WEB_DOMAIN"
 
 railway variable set --service api --skip-deploys "BETTER_AUTH_URL=https://$API_DOMAIN" "WEB_ORIGIN=https://$WEB_DOMAIN"
-railway variable set --service web --skip-deploys "NEXT_PUBLIC_API_URL=https://$API_DOMAIN"
+railway variable set --service web --skip-deploys "NEXT_PUBLIC_API_URL=https://$API_DOMAIN" "NEXT_PUBLIC_WEB_URL=https://$WEB_DOMAIN"
 
 # --- deploy -----------------------------------------------------------------------
 for svc in api worker web; do
