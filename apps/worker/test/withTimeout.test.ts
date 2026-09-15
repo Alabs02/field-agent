@@ -3,6 +3,13 @@ import { abortableSleep, JobTimeoutError } from "@field-agent/scraper";
 import { withTimeout } from "../src/lib/withTimeout.js";
 
 describe("withTimeout", () => {
+  it("does not start work when cancellation arrived before the job began", async () => {
+    const parent = new AbortController();
+    parent.abort(new Error("cancelled before start"));
+    let started = false;
+    await expect(withTimeout(500, async () => { started = true; }, parent.signal)).rejects.toThrow("cancelled before start");
+    expect(started).toBe(false);
+  });
   it("returns the result when the work finishes in time", async () => {
     await expect(withTimeout(500, async () => "done")).resolves.toBe("done");
   });

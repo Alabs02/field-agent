@@ -11,9 +11,9 @@ describe("effectiveStatus", () => {
     expect(effectiveStatus("running", iso(120), "waiting", now)).toBe("stalled");
     expect(effectiveStatus("running", iso(120), "unknown", now)).toBe("stalled");
   });
-  it("trusts a fresh heartbeat or an active job", () => {
+  it("trusts a fresh heartbeat but detects dead workers still in the active list", () => {
     expect(effectiveStatus("running", iso(5), "waiting", now)).toBe("running");
-    expect(effectiveStatus("running", iso(300), "active", now)).toBe("running");
+    expect(effectiveStatus("running", iso(300), "active", now)).toBe("stalled");
   });
   it("lets the queue's failed state win over a stale row", () => {
     expect(effectiveStatus("running", iso(5), "failed", now)).toBe("failed");

@@ -6,7 +6,22 @@ import { BASE, canonicalize, fixture } from "./helpers.js";
 const LISTING_URL = `${BASE}/sales/`;
 
 describe("parseListing", () => {
-  const rows = parseListing(fixture("listing.html"), canonicalize, LISTING_URL);
+  const { rows } = parseListing(fixture("listing.html"), canonicalize, LISTING_URL);
+
+  it("retains valid records and reports malformed rows without asserting completeness", () => {
+    const result = parseListing(fixture("listing.html").replace(/data-store-id="[^"]+"/, 'data-store-id=""'), canonicalize, LISTING_URL);
+    expect(result.rows).toHaveLength(rows.length - 1);
+    expect(result.rowErrors).toHaveLength(1);
+    expect(result.observedRows).toBe(rows.length);
+    expect(result.complete).toBe(false);
+  });
+
+  it("suppresses completeness when new source pagination appears", () => {
+    const result = parseListing(fixture("listing.html") + '<a rel="next" href="?page=2">Next</a>', canonicalize, LISTING_URL);
+    expect(result.rows).toHaveLength(rows.length);
+    expect(result.complete).toBe(false);
+    expect(result.completenessReasons).toContain("Unsupported source pagination detected");
+  });
 
   it("parses every deal-row on the page", () => {
     expect(rows.length).toBeGreaterThanOrEqual(20);

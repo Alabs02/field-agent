@@ -44,9 +44,16 @@ describe("RBAC", () => {
   it("lets operators scrape but not administer", () => {
     expect(can("operations", "scrape")).toBe(true);
     expect(can("operations", "admin")).toBe(false);
-    expect(can("reviewer", "scrape")).toBe(false);
+    expect(can("reviewer", "scrape")).toBe(true);
+    expect(can("reviewer", "advanced")).toBe(false);
     expect(can(null, "read")).toBe(false);
     expect(rolesWith("admin")).toEqual(["super_admin"]);
+  });
+  it("allows the four operational roles to configure schedules while account managers can only read", () => {
+    expect(rolesWith("schedule")).toEqual(["data_engineer", "operations", "reviewer", "super_admin"]);
+    expect(can("account_manager", "schedule")).toBe(false);
+    expect(can("account_manager", "scrape")).toBe(false);
+    expect(can("account_manager", "read")).toBe(true);
   });
 });
 
