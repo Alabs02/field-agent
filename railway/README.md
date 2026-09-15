@@ -18,6 +18,17 @@ To use Neon instead of Railway's Postgres:
 DATABASE_URL='postgres://…-pooler.neon.tech/…' DATABASE_URL_UNPOOLED='postgres://….neon.tech/…' pnpm railway:deploy
 ```
 
+## Region
+
+New services land in the workspace's default region (US West for this account) while the Neon database is in AWS us-east-1. The hosted demo's `api` and `web` were moved next to the database afterwards:
+
+```bash
+railway service scale --service api us-east=1 us-west=0
+railway service scale --service web us-east=1 us-west=0
+```
+
+Each call redeploys that service. The `worker` was left where it was until its first full scrape finished, then moved the same way. Setting the workspace default region to US East before running the script avoids the second deploy.
+
 ## What each service runs
 
 | Service | Dockerfile | Public? | Notes |
