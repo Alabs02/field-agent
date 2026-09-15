@@ -33,9 +33,11 @@ Each call redeploys that service. The `worker` was left where it was until its f
 
 | Service | Dockerfile | Public? | Notes |
 |---|---|---|---|
-| `api` | `railway/Dockerfile.api` | yes (`/docs`, `/health`, `/admin/queues`) | runs `cli.js migrate seed` (both idempotent) before listening; listens on `::` so `web` can reach it over private networking |
-| `worker` | `railway/Dockerfile.worker` | no | `SCRAPE_RESPECT_CRAWL_DELAY=true`, 60 s between requests |
+| `api` | `railway/Dockerfile.api` | yes (`/docs`, `/health`, `/admin/queues`) | runs `cli.js migrate seed` (both idempotent) before listening; hosts the schedule and run-health monitor; listens on `::` so `web` can reach it over private networking |
+| `worker` | `railway/Dockerfile.worker` | no | `SCRAPE_RESPECT_CRAWL_DELAY=true`, 60 s between requests, honours cancellation requests within a second |
 | `web` | `railway/Dockerfile.web` | yes (lander at `/`, product at `/app`) | talks to the API at `http://api.railway.internal:4000`; the browser never needs the API origin except the Bull Board link |
+
+To redeploy code without re-applying variables (for example when `DATABASE_URL` is not in your shell and must stay on Neon), run `railway up --service api --detach`, then the same for `worker` and `web`. The script's `ensure_service` step would otherwise re-point the API at a Railway Postgres plugin and rotate `BETTER_AUTH_SECRET`.
 
 The per-service Dockerfiles are generated from the root `Dockerfile` by `pnpm railway:dockerfiles`; Railway's builder cannot pick a multi-stage target, so each file ends in the stage it runs. `RAILWAY_DOCKERFILE_PATH` on each service selects the file.
 
@@ -57,7 +59,10 @@ BETTER_AUTH_URL         = https://<api domain>
 WEB_ORIGIN              = https://<web domain>
 SEED_DEMO_PASSWORD      = FieldAgent-Demo-2026!   (override before running the script)
 SCRAPE_ON_BOOT          = true
+SCRAPE_MIN_DELAY_MS     = 60000   (the launch dialog quotes it; keep it equal to the worker's)
 ```
+
+The API also runs the schedule and run-health monitor (a BullMQ job scheduler on the same Redis) and applies migrations on boot, so it must be up before the worker after a migration that adds tables.
 
 `worker`
 

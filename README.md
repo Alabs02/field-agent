@@ -24,7 +24,7 @@ An engagement agent that walks the mall for you. It scrapes the promotions a sho
 
 | Try it hosted | Run it locally | Read the decisions |
 |---|---|---|
-| Open [field-agent.up.railway.app/app](https://field-agent.up.railway.app/app) and sign in as `reviewer@fieldagent.demo` with the password `FieldAgent-Demo-2026!` (all five accounts are under [Demo accounts](#demo-accounts)). The first page after a quiet spell takes about a second longer: the database scales to zero when idle. | `git clone https://github.com/Alabs02/field-agent.git && cd field-agent && docker compose up --build`. Real promotions appear at http://localhost:3000/app about two minutes later. | [DESIGN.md](./DESIGN.md): what was chosen and why, written before the code. [ASSUMPTIONS.md](./ASSUMPTIONS.md): how the brief was read, and what the live runs taught. |
+| Open [field-agent.up.railway.app/app](https://field-agent.up.railway.app/app) and sign in as `reviewer@fieldagent.demo` with the password `FieldAgent-Demo-2026!` (all five accounts are under [Demo accounts](#demo-accounts)). The first page after a quiet spell takes about a second longer: the database scales to zero when idle. | `git clone https://github.com/Alabs02/field-agent.git && cd field-agent && docker compose up --build`. Real promotions appear at http://localhost:3000/app (overview) and `/app/promotions` about two minutes later. | [DESIGN.md](./DESIGN.md): what was chosen and why, written before the code. [ASSUMPTIONS.md](./ASSUMPTIONS.md): how the brief was read, and what the live runs taught. |
 
 ## Contents
 
@@ -37,17 +37,20 @@ An engagement agent that walks the mall for you. It scrapes the promotions a sho
 
 ## Screenshots
 
-Captured from the hosted demo. Expected files: `docs/screenshots/lander.png`, `promotions.png`, `runs.png`, `verification.png`.
+Captured from the hosted demo. Expected files: `docs/screenshots/overview.png`, `promotions.png`, `runs.png`, `verification.png`, `lander.png`.
 
-<!-- Un-comment once the four PNGs exist in docs/screenshots/ (1440 px wide, light theme).
+<!-- Un-comment once the PNGs exist in docs/screenshots/ (1440 px wide, light theme).
 <table>
   <tr>
-    <td><img src="docs/screenshots/lander.png" alt="Lander at /" width="100%"><br><sub>Lander at <code>/</code>: the verification band reads the last real run.</sub></td>
-    <td><img src="docs/screenshots/promotions.png" alt="Promotions grid" width="100%"><br><sub>Promotions at <code>/app</code>: filters, sort, and the By-brand grouping.</sub></td>
+    <td><img src="docs/screenshots/overview.png" alt="Operations overview" width="100%"><br><sub>Overview at <code>/app</code>: inventory, period activity, coverage, and the pipeline's pulse.</sub></td>
+    <td><img src="docs/screenshots/promotions.png" alt="Promotions" width="100%"><br><sub>Promotions at <code>/app/promotions</code>: filters, table view, and the By-brand grouping.</sub></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/runs.png" alt="Runs dashboard" width="100%"><br><sub>Runs: per-run outcomes, phase timeline, request counts, errors.</sub></td>
-    <td><img src="docs/screenshots/verification.png" alt="Verification report" width="100%"><br><sub>Verification report: what was checked, what drifted, and why.</sub></td>
+    <td><img src="docs/screenshots/runs.png" alt="Runs dashboard" width="100%"><br><sub>Runs: outcomes, phase timeline, requests, errors, retry and cancel.</sub></td>
+    <td><img src="docs/screenshots/verification.png" alt="Verification report" width="100%"><br><sub>Verification report: processing result, data verdict, coverage, before/after.</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/lander.png" alt="Lander at /" width="100%"><br><sub>Lander at <code>/</code>: the verification band reads the last real run.</sub></td>
   </tr>
 </table>
 -->
@@ -222,9 +225,9 @@ A pnpm and Turborepo monorepo where the shared Zod schemas are the single contra
 
 | Piece | Where | What it does |
 |---|---|---|
-| `apps/api` | Fastify 5 | Typed REST API. Every response is serialized against the shared Zod schemas. Enqueues jobs; never scrapes inline. |
-| `apps/worker` | BullMQ | Scrape and verification jobs. Retries, backoff, per-job timeout, heartbeat, honest counts. |
-| `apps/web` | Next.js 16 | Promotions (flat and grouped by brand), brands, run health, verification reports. |
+| `apps/api` | Fastify 5 | Typed REST API. Every response is serialized against the shared Zod schemas. Enqueues jobs through one launch path, never scrapes inline; runs the schedule and run-health monitor; serves exports. |
+| `apps/worker` | BullMQ | Scrape and verification jobs. Retries, backoff, per-job timeout, heartbeat, cooperative cancellation, honest counts. |
+| `apps/web` | Next.js 16 | Operations overview, promotions (cards, table, grouped by brand), brands, run health with retry and cancel, verification reports and findings, schedules, audit trail, notifications. |
 | `packages/shared` | Zod | The one source of truth: scraper output → job payloads → API contract → UI props. |
 | `packages/scraper` | got-scraping + cheerio | Portal adapter, politeness throttle, parsers, and the verification diff. Tested against captured real pages. |
 | `packages/db` | Drizzle + Postgres | Schema, migrations, repositories. |
@@ -273,7 +276,7 @@ All of them are documented inline in [.env.example](./.env.example). The ones wo
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `SCRAPE_MIN_DELAY_MS` | `2000` | Minimum spacing between requests to the portal, shared by scrape and verify. |
+| `SCRAPE_MIN_DELAY_MS` | `2000` | Minimum spacing between requests to the portal, shared by scrape and verify. Set it on the API too: the launch dialog quotes it as the source spacing. |
 | `SCRAPE_RESPECT_CRAWL_DELAY` | `false` | When `true`, the portal's `Crawl-delay: 60` is a floor. Set it in production. |
 | `SCRAPE_ENGINE` | `http` | `playwright` for the browser engine. With Compose, `WORKER_TARGET=worker-browser SCRAPE_ENGINE=playwright docker compose up --build` builds the Playwright image for the one worker service. |
 | `SCRAPE_JOB_TIMEOUT_MS` | `5400000` | Per-attempt timeout; aborts in-flight requests, not just the promise. |
