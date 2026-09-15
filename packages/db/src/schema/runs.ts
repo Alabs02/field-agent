@@ -19,6 +19,9 @@ export const scrapeRuns = pgTable(
       .notNull()
       .references(() => portals.id),
     triggeredBy: text("triggered_by"),
+    parentRunId: uuid("parent_run_id"),
+    cycleId: uuid("cycle_id"),
+    cancelRequestedAt: timestamp("cancel_requested_at", { withTimezone: true }),
     status: runStatusEnum("status").notNull().default("queued"),
     phase: scrapePhaseEnum("phase").notNull().default("queued"),
     progress: smallint("progress").notNull().default(0),
@@ -54,6 +57,9 @@ export const verificationRuns = pgTable(
       .notNull()
       .references(() => portals.id),
     triggeredBy: text("triggered_by"),
+    parentRunId: uuid("parent_run_id"),
+    cycleId: uuid("cycle_id"),
+    cancelRequestedAt: timestamp("cancel_requested_at", { withTimezone: true }),
     status: runStatusEnum("status").notNull().default("queued"),
     attemptsMade: smallint("attempts_made").notNull().default(0),
     sampleRate: real("sample_rate").notNull(),

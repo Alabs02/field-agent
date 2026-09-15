@@ -42,6 +42,8 @@ export type FindingEvidence = z.infer<typeof FindingEvidenceSchema>;
 
 export const FindingSchema = z.object({
   id: Uuid,
+  /** The verification run that recorded this observation. */
+  runId: Uuid,
   kind: VerificationOutcomeSchema,
   promotion: z.object({
     id: Uuid,

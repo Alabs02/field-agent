@@ -18,6 +18,7 @@ import {
   hashFields,
   isScrapeError,
   JobTimeoutError,
+  ParseError,
   promotionFingerprint,
   type AdapterContext,
   type Discovery,
@@ -26,6 +27,8 @@ import type { WorkerContext } from "../lib/context.js";
 import { makeFetcher } from "../lib/fetcher.js";
 import { RunTracker } from "../lib/runTracker.js";
 import { withTimeout } from "../lib/withTimeout.js";
+import { watchCancellation } from "../lib/cancellation.js";
+import { isSourceBlocked, recordRunNotice } from "../lib/notify.js";
 
 interface ScrapeState {
   status: "running" | "completed" | "completed_with_errors" | "failed";
@@ -78,6 +81,7 @@ export async function processScrapeJob(ctx: WorkerContext, job: Job<ScrapeJobPay
     (patch) => runsRepo.updateScrapeRun(db, payload.runId, patch),
     job,
     (s) => ({ phase: s.phase, pct: s.progress, counts: counts(s) }),
+    runRow.errors,
   );
 
   await runsRepo.updateScrapeRun(db, payload.runId, {
@@ -100,11 +104,13 @@ export async function processScrapeJob(ctx: WorkerContext, job: Job<ScrapeJobPay
   });
   tracker.start();
   log.info({ options: payload.options }, "scrape started");
+  const cancellation = watchCancellation(db, "scrape", payload.runId);
 
   try {
-    const result = await withTimeout(env.SCRAPE_JOB_TIMEOUT_MS, (signal) => runScrape(ctx, payload, tracker, signal, log));
+    await cancellation.check();
+    const result = await withTimeout(env.SCRAPE_JOB_TIMEOUT_MS, (signal) => runScrape(ctx, payload, tracker, signal, log), cancellation.signal);
     tracker.stop();
-    const finalStatus = result.failed === 0 && tracker.state.brandsFailed === 0 ? "completed" : "completed_with_errors";
+    const finalStatus = result.failed === 0 && tracker.state.brandsFailed === 0 && tracker.errors.length === runRow.errors.length ? "completed" : "completed_with_errors";
     tracker.update((s) => {
       s.status = finalStatus;
       s.phase = "done";
@@ -124,13 +130,28 @@ export async function processScrapeJob(ctx: WorkerContext, job: Job<ScrapeJobPay
     });
     await tracker.flush(true);
     await runsRepo.updateScrapeRun(db, payload.runId, {
-      status: retryable ? "queued" : "failed",
+      status: cancellation.signal.aborted ? "cancelled" : retryable ? "queued" : "failed",
       error: err instanceof Error ? err.message : String(err),
       finishedAt: retryable ? null : new Date(),
     });
+    if (isSourceBlocked(err)) {
+      await recordRunNotice(db, log, {
+        portalId: payload.portalId,
+        runId: payload.runId,
+        eventKey: `blocked:${payload.runId}`,
+        action: "source.blocked",
+        actor: payload.requestedBy,
+        label: `Scrape ${payload.runId.slice(0, 8)}`,
+        message: "The source served an anti-bot challenge. The page was kept as an HTML snapshot for review; no further requests were made in this run",
+        href: `/app/runs/${payload.runId}`,
+        severity: "error",
+      });
+    }
     log.error({ err, retryable, timedOut }, "scrape failed");
     if (retryable) throw err; // BullMQ retries with backoff, same runId
     throw new UnrecoverableError(err instanceof Error ? err.message : String(err));
+  } finally {
+    cancellation.stop();
   }
 }
 
@@ -152,6 +173,7 @@ async function runScrape(
 
   // --- discover: robots + sitemap ---------------------------------------
   let discovery: Discovery | null = null;
+  let allowed = (_url: string) => true;
   let throttle = ctx.makeThrottle(env.SCRAPE_MIN_DELAY_MS);
   const fetcher = makeFetcher({
     db,
@@ -164,10 +186,15 @@ async function runScrape(
     runId: payload.runId,
     snapshotMode: env.SNAPSHOT_MODE,
     signal,
-    isAllowed: () => (discovery ? discovery.isAllowed : () => true),
+    isAllowed: () => allowed,
     onRequest: () => tracker.countRequest(),
   });
-  const actx: AdapterContext = { fetch: fetcher, log, signal, now };
+  const actx: AdapterContext = { fetch: fetcher, log, signal, now, onRobots: async rules => {
+    allowed = rules.isAllowed;
+    const delay = effectiveDelayMs(env.SCRAPE_MIN_DELAY_MS, rules.crawlDelayMs, env.SCRAPE_RESPECT_CRAWL_DELAY);
+    throttle = ctx.makeThrottle(delay);
+    await throttle.cooldown(new URL(adapter.baseUrl).hostname, Date.now() + delay);
+  } };
 
   tracker.update((s) => {
     s.phase = "discover";
@@ -183,8 +210,18 @@ async function runScrape(
     s.phase = "listing";
     s.progress = pct("listing", 0);
   });
-  let rows = await adapter.fetchListing(actx);
-  if (payload.options.maxItems) rows = rows.slice(0, payload.options.maxItems);
+  const listing = await adapter.fetchListing(actx);
+  const rows = payload.options.maxItems ? listing.rows.slice(0, payload.options.maxItems) : listing.rows;
+  for (const problem of listing.rowErrors) {
+    tracker.recordError("listing", new ParseError("listing_row_invalid", problem.message), { sourceId: problem.sourceId });
+  }
+  tracker.update((s) => {
+    s.attempted += listing.rowErrors.length;
+    s.failed += listing.rowErrors.length;
+  });
+  if (!listing.complete) {
+    tracker.recordError("listing", new ParseError("listing_incomplete", listing.completenessReasons.join("; ")));
+  }
   log.info({ rows: rows.length }, "listing parsed");
 
   const brandById = new Map<string, BrandRow>();
@@ -196,7 +233,7 @@ async function runScrape(
     }
     log.info({ brands: stubs.length }, "directory parsed");
   } catch (err) {
-    if (err instanceof AbortedError) throw err;
+    if (err instanceof AbortedError || (isScrapeError(err) && err.code === "source_blocked")) throw err;
     tracker.recordError("directory", err);
     log.warn({ err }, "directory unavailable; brands will be stubbed from the listing");
   }
@@ -206,7 +243,9 @@ async function runScrape(
       brandById.set(b.sourceId, b);
     }
   }
-  const removed = await promotionsRepo.markRemovedExcept(db, portalId, rows.map((r) => r.sourceId), now());
+  const removed = listing.complete
+    ? await promotionsRepo.markRemovedExcept(db, portalId, listing.rows.map((r) => r.sourceId), now())
+    : 0;
   if (removed) log.info({ removed }, "promotions no longer on the listing were marked removed");
   tracker.update((s) => {
     s.progress = pct("listing", 1);
@@ -246,7 +285,7 @@ async function runScrape(
           s[outcome] += 1;
         });
       } catch (err) {
-        if (err instanceof AbortedError) throw err;
+        if (err instanceof AbortedError || (isScrapeError(err) && err.code === "source_blocked")) throw err;
         tracker.recordError("persist", err, { sourceId: row.sourceId, url: row.detailUrl });
         tracker.update((s) => {
           s.failed += 1;
@@ -264,7 +303,7 @@ async function runScrape(
         s[outcome] += 1;
       });
     } catch (err) {
-      if (err instanceof AbortedError) throw err;
+      if (err instanceof AbortedError || (isScrapeError(err) && err.code === "source_blocked")) throw err;
       tracker.recordError("detail", err, { sourceId: row.sourceId, url: row.detailUrl });
       log.warn({ err, sourceId: row.sourceId }, "detail fetch failed; persisting listing-level data");
       try {
@@ -302,7 +341,7 @@ async function runScrape(
         const scraped = await adapter.fetchBrand(actx, storeUrl);
         await brandsRepo.upsertBrandDetails(db, portalId, scraped, brandHash(scraped), now());
       } catch (err) {
-        if (err instanceof AbortedError) throw err;
+        if (err instanceof AbortedError || (isScrapeError(err) && err.code === "source_blocked")) throw err;
         tracker.recordError("brand", err, { sourceId: brand.sourceId, url: storeUrl });
         tracker.update((s) => {
           s.brandsFailed += 1;

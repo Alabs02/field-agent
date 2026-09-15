@@ -12,6 +12,7 @@ export * from "./runs.js";
 export * from "./findings.js";
 export * from "./snapshots.js";
 export * from "./auth.js";
+export * from "./operations.js";
 
 export const brandsRelations = relations(brands, ({ many }) => ({
   promotions: many(promotions),

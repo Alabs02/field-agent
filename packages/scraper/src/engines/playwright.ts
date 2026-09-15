@@ -15,6 +15,8 @@ type PwContext = {
   close(): Promise<void>;
 };
 type PwPage = {
+  route(pattern: string, handler: (route: { request(): { url(): string; resourceType(): string; isNavigationRequest(): boolean }; abort(): Promise<void>; continue(): Promise<void> }) => Promise<void>): Promise<void>;
+  waitForSelector(selector: string, options: { timeout: number; state: "attached" }): Promise<unknown>;
   goto(
     url: string,
     o: { waitUntil: "domcontentloaded"; timeout: number },
@@ -48,10 +50,23 @@ export class PlaywrightEngine implements ScrapeEngine {
     if (opts.signal?.aborted) throw new AbortedError(opts.signal.reason);
     const ctx = await this.ensure();
     const page = await ctx.newPage();
+    const abort = () => { void page.close().catch(() => {}); };
+    opts.signal?.addEventListener("abort", abort, { once: true });
     try {
+      if (opts.signal?.aborted) throw new AbortedError(opts.signal.reason);
+      await page.route("**/*", async route => {
+        const request = route.request();
+        if (["image", "font", "media"].includes(request.resourceType()) || new URL(request.url()).hostname !== new URL(url).hostname) return route.abort();
+        if (!request.isNavigationRequest()) {
+          try { await opts.beforeSubrequest?.(request.url()); } catch { return route.abort(); }
+        }
+        return route.continue();
+      });
       const res = await page.goto(url, { waitUntil: "domcontentloaded", timeout: this.opts.timeoutMs });
       const status = res?.status() ?? 200;
       if (status >= 400) throw new FetchError(url, status, `HTTP ${status} for ${url}`);
+      const readiness = opts.kind === "listing" ? ".deal-row" : opts.kind === "deal" ? 'script[type="application/ld+json"], .deal-detail' : null;
+      if (readiness && !/cf-chl-|verify you are human/i.test(await page.content())) await page.waitForSelector(readiness, { timeout: this.opts.timeoutMs, state: "attached" });
       const body = await page.content();
       return {
         url,
@@ -61,8 +76,12 @@ export class PlaywrightEngine implements ScrapeEngine {
         headers: res?.headers() ?? {},
         notModified: false,
       };
+    } catch (err) {
+      if (opts.signal?.aborted) throw new AbortedError(opts.signal.reason);
+      throw err;
     } finally {
-      await page.close();
+      opts.signal?.removeEventListener("abort", abort);
+      await page.close().catch(() => {});
     }
   }
 

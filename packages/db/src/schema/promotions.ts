@@ -54,6 +54,7 @@ export const promotions = pgTable(
     }),
     lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
     lastVerificationOutcome: verificationOutcomeEnum("last_verification_outcome"),
+    lastVerificationCoverage: text("last_verification_coverage").$type<"listing" | "detail">(),
     lastVerificationRunId: uuid("last_verification_run_id").references(() => verificationRuns.id, {
       onDelete: "set null",
     }),

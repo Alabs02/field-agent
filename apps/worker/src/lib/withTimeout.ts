@@ -20,6 +20,9 @@ export async function withTimeout<T>(
   });
 
   try {
+    if (parentSignal?.aborted) {
+      throw parentSignal.reason;
+    }
     return await Promise.race([run(ac.signal), aborted]);
   } finally {
     clearTimeout(timer);

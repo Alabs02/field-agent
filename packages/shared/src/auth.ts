@@ -10,16 +10,16 @@ export const ROLES = [
 export const RoleSchema = z.enum(ROLES);
 export type Role = z.infer<typeof RoleSchema>;
 
-export const CAPABILITIES = ["read", "scrape", "verify", "admin"] as const;
+export const CAPABILITIES = ["read", "scrape", "verify", "schedule", "advanced", "admin"] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
 /** Single source of truth for RBAC; the API guard and the UI both read this. */
 export const PERMISSIONS: Record<Role, ReadonlySet<Capability>> = {
   account_manager: new Set(["read"]),
-  reviewer: new Set(["read"]),
-  data_engineer: new Set(["read", "scrape", "verify"]),
-  operations: new Set(["read", "scrape", "verify"]),
-  super_admin: new Set(["read", "scrape", "verify", "admin"]),
+  reviewer: new Set(["read", "scrape", "verify", "schedule"]),
+  data_engineer: new Set(["read", "scrape", "verify", "schedule", "advanced"]),
+  operations: new Set(["read", "scrape", "verify", "schedule", "advanced"]),
+  super_admin: new Set(["read", "scrape", "verify", "schedule", "advanced", "admin"]),
 };
 
 export const can = (role: Role | null | undefined, capability: Capability): boolean =>

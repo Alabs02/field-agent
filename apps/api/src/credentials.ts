@@ -13,6 +13,8 @@ const CAPABILITY_WORDS: Record<Capability, string> = {
   read: "read",
   scrape: "scrape",
   verify: "verify",
+  schedule: "configure schedules",
+  advanced: "advanced jobs",
   admin: "admin (queues, users)",
 };
 

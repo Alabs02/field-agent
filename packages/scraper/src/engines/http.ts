@@ -66,7 +66,7 @@ export class HttpEngine implements ScrapeEngine {
       return { url, finalUrl, status, body: "", headers: flatHeaders, notModified: true };
     }
     if (status >= 400) {
-      throw new FetchError(url, status, `HTTP ${status} for ${url}`);
+      throw new FetchError(url, status, `HTTP ${status} for ${url}`, undefined, flatHeaders["retry-after"] ?? null);
     }
     return {
       url,

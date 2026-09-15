@@ -21,6 +21,7 @@ import { promotionRoutes } from "./routes/promotions.js";
 import { runRoutes } from "./routes/runs.js";
 import { scrapeRoutes } from "./routes/scrape.js";
 import { verifyRoutes } from "./routes/verify.js";
+import { operationRoutes } from "./routes/operations.js";
 
 export interface BuildAppOptions {
   deps: AppDeps;
@@ -114,6 +115,7 @@ export async function buildApp({ deps, resolveSession, auth: authIn, logger }: B
   await app.register(verifyRoutes(deps, guard));
   await app.register(runRoutes(deps, guard));
   await app.register(adminRoutes(deps, guard));
+  await app.register(operationRoutes(deps, guard));
 
   return app;
 }

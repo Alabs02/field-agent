@@ -7,6 +7,7 @@ import { parseDirectory } from "./directory.js";
 import { parseListing } from "./listing.js";
 import { parseSitemap } from "./sitemap.js";
 import { parseStorePage } from "./store.js";
+import { AbortedError } from "../../errors.js";
 
 export interface BriargateAdapterOptions {
   userAgent: string;
@@ -31,14 +32,17 @@ export class BriargateAdapter implements PortalAdapter {
       const r = await ctx.fetch(this.robotsUrl, "robots");
       robots = parseRobots(this.robotsUrl, r.body, this.opts.userAgent);
     } catch (err) {
+      if (ctx.signal?.aborted || err instanceof AbortedError) throw err;
       ctx.log.warn({ err: String(err) }, "robots.txt unavailable; proceeding permissively");
     }
+    await ctx.onRobots?.(robots);
 
     let sitemap = new Map<string, { url: string; lastmod: Date | null; expires: Date | null }>();
     try {
       const s = await ctx.fetch(this.sitemapUrl, "sitemap");
       sitemap = parseSitemap(s.body, this.canonicalize);
     } catch (err) {
+      if (ctx.signal?.aborted || err instanceof AbortedError) throw err;
       ctx.log.warn({ err: String(err) }, "sitemap.xml unavailable; change detection disabled for this run");
     }
 
@@ -57,7 +61,7 @@ export class BriargateAdapter implements PortalAdapter {
     return parseDirectory(r.body, this.canonicalize);
   }
 
-  async fetchListing(ctx: AdapterContext): Promise<ScrapedListingRow[]> {
+  async fetchListing(ctx: AdapterContext) {
     const r = await ctx.fetch(this.listingUrl, "listing");
     return parseListing(r.body, this.canonicalize, this.listingUrl);
   }

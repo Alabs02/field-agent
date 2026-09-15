@@ -1,7 +1,8 @@
 import { sql } from "drizzle-orm";
-import { createDb, promotionsRepo, runsRepo } from "@field-agent/db";
+import { createDb, promotionsRepo } from "@field-agent/db";
 import { createQueues, createRedis } from "@field-agent/queue";
-import { JOB, ScrapeOptionsSchema } from "@field-agent/shared";
+import { launch } from "./services/launch.js";
+import { startOperationsMonitor } from "./services/scheduler.js";
 import { buildApp } from "./app.js";
 import type { AppDeps } from "./deps.js";
 import { loadEnv } from "./env.js";
@@ -38,16 +39,15 @@ async function scrapeOnBoot(): Promise<void> {
   if (!env.SCRAPE_ON_BOOT) return;
   const completed = await promotionsRepo.countCompletedScrapes(db, env.PORTAL_ID);
   if (completed > 0) return;
-  const active = await runsRepo.findActiveScrapeRun(db, env.PORTAL_ID);
-  if (active) return;
-  const options = ScrapeOptionsSchema.parse({});
-  const run = await runsRepo.createScrapeRun(db, { portalId: env.PORTAL_ID, triggeredBy: "boot", options });
-  await queues.scrape.add(JOB.scrapePortal, { portalId: env.PORTAL_ID, runId: run.id, requestedBy: "boot", options }, { jobId: run.id });
-  app.log.info({ runId: run.id }, "no completed scrape yet; enqueued the first one (SCRAPE_ON_BOOT)");
+  const run = await launch(deps, { type: "scrape", actor: "boot" });
+  app.log.info({ runId: run.runId }, "no completed scrape yet; enqueued the first one (SCRAPE_ON_BOOT)");
 }
+
+let stopOperations: (() => Promise<void>) | undefined;
 
 try {
   await app.listen({ port: env.API_PORT, host: env.API_HOST });
+  stopOperations = await startOperationsMonitor(deps, app.log);
   app.log.info({ docs: `http://localhost:${env.API_PORT}/docs`, authRequired: env.AUTH_REQUIRED }, "field-agent api ready");
   await scrapeOnBoot().catch((err) => app.log.warn({ err }, "scrape-on-boot skipped"));
 } catch (err) {
@@ -61,6 +61,7 @@ async function shutdown(signal: string) {
   shuttingDown = true;
   app.log.info({ signal }, "shutting down");
   await app.close().catch(() => {});
+  await stopOperations?.().catch(() => {});
   await queues.close().catch(() => {});
   await closeDb().catch(() => {});
   redis.disconnect();

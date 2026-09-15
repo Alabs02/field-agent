@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { ScrapeOptionsSchema } from "./jobs";
 import { PageQuerySchema } from "./pagination";
-import { IsoDate, NonEmpty, QueryBool, Uuid } from "./primitives";
+import { IsoDate, IsoDateTime, NonEmpty, QueryBool, Uuid } from "./primitives";
+import { RunStatusSchema } from "./runs";
 import { CollectionSchema, VerificationOutcomeSchema } from "./promotion";
 
 export const PromotionSortSchema = z.enum(["endingSoon", "newest", "alpha", "brand"]);
@@ -23,6 +24,12 @@ export const PromotionsQuerySchema = PageQuerySchema.extend({
   /** Filter by last verification outcome; "never" = never verified. */
   verification: z.union([VerificationOutcomeSchema, z.literal("never")]).optional(),
   includeRemoved: QueryBool.default(false),
+  presence: z.enum(["listed", "removed", "all"]).optional(),
+  freshness: z.enum(["fresh", "stale", "never_detail"]).optional(),
+  firstSeenFrom: IsoDateTime.optional(),
+  firstSeenTo: IsoDateTime.optional(),
+  endingSoon: QueryBool.default(false),
+  attention: QueryBool.default(false),
 }).refine((q) => !(q.startDate && q.endDate) || q.startDate <= q.endDate, {
   message: "startDate must be on or before endDate",
   path: ["startDate"],
@@ -36,13 +43,24 @@ export const BrandsQuerySchema = z.object({
   search: NonEmpty.optional(),
   hasPromotions: QueryBool.default(false),
   sort: z.enum(["promotions", "alpha"]).default("promotions"),
+  category: NonEmpty.optional(),
+  enrichment: z.enum(["fetched", "pending", "website", "hours", "socials"]).optional(),
 });
 export type BrandsQuery = z.infer<typeof BrandsQuerySchema>;
 
 export const RunsQuerySchema = PageQuerySchema.extend({
   type: z.enum(["scrape", "verify"]).optional(),
+  status: RunStatusSchema.optional(),
+  from: IsoDateTime.optional(),
+  to: IsoDateTime.optional(),
 });
 export type RunsQuery = z.infer<typeof RunsQuerySchema>;
+
+export const FindingsQuerySchema = PageQuerySchema.extend({
+  runId: Uuid.optional(), search: NonEmpty.optional(), brand: NonEmpty.optional(),
+  outcome: VerificationOutcomeSchema.optional(), field: NonEmpty.optional(),
+});
+export type FindingsQuery = z.infer<typeof FindingsQuerySchema>;
 
 export const ScrapeRequestSchema = ScrapeOptionsSchema.partial();
 export type ScrapeRequest = z.infer<typeof ScrapeRequestSchema>;

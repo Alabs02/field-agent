@@ -4,6 +4,9 @@ export type ScrapeErrorCode =
   | "fetch_timeout"
   | "robots_disallowed"
   | "listing_empty"
+  | "listing_row_invalid"
+  | "listing_incomplete"
+  | "source_blocked"
   | "jsonld_missing"
   | "parse_error"
   | "validation_error"
@@ -33,7 +36,7 @@ export class ScrapeError extends Error {
 const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 export class FetchError extends ScrapeError {
-  constructor(url: string, status: number | null, message: string, cause?: unknown) {
+  constructor(url: string, status: number | null, message: string, cause?: unknown, public readonly retryAfter: string | null = null) {
     const code: ScrapeErrorCode = status === null ? "network_error" : "http_error";
     super(code, message, {
       url,
@@ -60,7 +63,7 @@ export class RobotsDisallowedError extends ScrapeError {
 }
 
 export class ParseError extends ScrapeError {
-  constructor(code: "listing_empty" | "jsonld_missing" | "parse_error", message: string, url?: string) {
+  constructor(code: "listing_empty" | "listing_row_invalid" | "listing_incomplete" | "jsonld_missing" | "parse_error", message: string, url?: string) {
     super(code, message, { url: url ?? null, retryable: false });
     this.name = "ParseError";
   }

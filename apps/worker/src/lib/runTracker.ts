@@ -25,10 +25,13 @@ export class RunTracker<TState extends object> {
     private readonly persist: (patch: TState & { errors: RunError[]; requestsMade: number; heartbeatAt: Date }) => Promise<void>,
     private readonly job: Job | null,
     private readonly progressOf: (state: TState) => unknown,
-  ) {}
+    priorErrors: RunError[] = [],
+  ) {
+    this.errors.push(...priorErrors.slice(0, MAX_ERRORS));
+  }
 
   start(): void {
-    this.heartbeat = setInterval(() => void this.flush(true), HEARTBEAT_INTERVAL_MS);
+    this.heartbeat = setInterval(() => void this.flush(true).catch(() => { this.dirty = true; }), HEARTBEAT_INTERVAL_MS);
   }
 
   stop(): void {
@@ -39,7 +42,7 @@ export class RunTracker<TState extends object> {
   update(mutate: (s: TState) => void): void {
     mutate(this.state);
     this.dirty = true;
-    void this.flush(false);
+    void this.flush(false).catch(() => { this.dirty = true; });
   }
 
   recordError(stage: string, err: unknown, extra: { sourceId?: string | null; url?: string | null } = {}): RunError {
@@ -55,7 +58,7 @@ export class RunTracker<TState extends object> {
     if (this.errors.length < MAX_ERRORS) this.errors.push(entry);
     else this.truncatedErrors += 1;
     this.dirty = true;
-    void this.flush(false);
+    void this.flush(false).catch(() => { this.dirty = true; });
     return entry;
   }
 
@@ -70,8 +73,8 @@ export class RunTracker<TState extends object> {
     if (!force && (!this.dirty || now - this.lastFlush < FLUSH_INTERVAL_MS)) return this.flushing;
     this.lastFlush = now;
     this.dirty = false;
-    this.flushing = this.flushing.then(async () => {
-      await this.persist({ ...this.state, errors: this.errors, requestsMade: this.requestsMade, heartbeatAt: new Date() });
+    this.flushing = this.flushing.catch(() => {}).then(async () => {
+      await this.persist({ ...this.state, errors: [...this.errors], requestsMade: this.requestsMade, heartbeatAt: new Date() });
       if (this.job) await this.job.updateProgress(this.progressOf(this.state) as object).catch(() => {});
     });
     return this.flushing;

@@ -26,6 +26,15 @@ export const ScrapedListingRowSchema = z.object({
 });
 export type ScrapedListingRow = z.infer<typeof ScrapedListingRowSchema>;
 
+export const ListingResultSchema = z.object({
+  rows: z.array(ScrapedListingRowSchema),
+  rowErrors: z.array(z.object({ sourceId: z.string().nullable(), message: z.string() })),
+  complete: z.boolean(),
+  completenessReasons: z.array(z.string()),
+  observedRows: z.number().int().nonnegative(),
+});
+export type ListingResult = z.infer<typeof ListingResultSchema>;
+
 export const ScrapedPromotionSchema = ScrapedListingRowSchema.extend({
   canonicalUrl: HttpUrl,
   description: z.string().nullable(),

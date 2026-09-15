@@ -18,6 +18,8 @@ const EnvSchema = z.object({
   SCRAPE_JOB_TIMEOUT_MS: z.coerce.number().int().positive().default(5_400_000),
   VERIFY_JOB_TIMEOUT_MS: z.coerce.number().int().positive().default(1_800_000),
   VERIFY_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.2),
+  /** Removed promotions are re-checked for this many days after they left the listing, then left alone. */
+  VERIFY_REMOVED_WINDOW_DAYS: z.coerce.number().int().min(0).default(14),
   BRAND_REFRESH_HOURS: z.coerce.number().positive().default(24),
   SNAPSHOT_MODE: z.enum(["first", "changed", "all", "off"]).default("changed"),
   WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(4).default(1),

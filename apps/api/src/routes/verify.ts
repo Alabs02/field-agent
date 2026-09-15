@@ -1,9 +1,10 @@
+import { launch } from "../services/launch.js";
+import { effectiveStatus, queueStateOf } from "../plugins/job-state.js";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { findingsRepo, runsRepo, verificationRunToApi } from "@field-agent/db";
 import {
   ApiErrorSchema,
   EnqueueResponseSchema,
-  JOB,
   RunIdParamsSchema,
   VerificationReportSchema,
   VerifyRequestSchema,
@@ -13,7 +14,7 @@ import {
 } from "@field-agent/shared";
 import type { AppDeps } from "../deps.js";
 import type { Guard } from "../plugins/auth-guard.js";
-import { HttpError, notFound } from "../plugins/error-handler.js";
+import { notFound } from "../plugins/error-handler.js";
 
 export function resultOf(run: VerificationRun): VerificationResult {
   if (run.status === "queued" || run.status === "running" || run.status === "stalled") return "in_progress";
@@ -26,7 +27,6 @@ export function resultOf(run: VerificationRun): VerificationResult {
 export const verifyRoutes =
   (deps: AppDeps, guard: Guard): FastifyPluginAsyncZod =>
   async (app) => {
-    const portalId = deps.env.PORTAL_ID;
 
     app.post(
       "/verify",
@@ -42,28 +42,8 @@ export const verifyRoutes =
       async (req, reply) => {
         const body = req.body ?? {};
         const sampleRate = body.sampleRate ?? deps.env.VERIFY_SAMPLE_RATE;
-        const active = await runsRepo.findActiveVerificationRun(deps.db, portalId);
-        if (active && !body.promotionIds) {
-          return reply.status(200).send({ jobId: active.id, runId: active.id, reused: true, statusUrl: `/verify/${active.id}` });
-        }
-        const run = await runsRepo.createVerificationRun(deps.db, {
-          portalId,
-          triggeredBy: req.user?.email ?? null,
-          sampleRate,
-          promotionIds: body.promotionIds,
-        });
-        try {
-          await deps.queues.verify.add(
-            JOB.verifyPortal,
-            { portalId, runId: run.id, requestedBy: req.user?.email ?? null, sampleRate, promotionIds: body.promotionIds },
-            { jobId: run.id },
-          );
-        } catch (err) {
-          await runsRepo.updateVerificationRun(deps.db, run.id, { status: "failed", error: "queue unavailable", finishedAt: new Date() });
-          req.log.error({ err }, "could not enqueue verification");
-          throw new HttpError(503, "QUEUE_UNAVAILABLE", "the job queue is unavailable; try again shortly");
-        }
-        return reply.status(202).send({ jobId: run.id, runId: run.id, reused: false, statusUrl: `/verify/${run.id}` });
+        const result = await launch(deps, { type: "verify", user: req.user, sampleRate, promotionIds: body.promotionIds });
+        return reply.status(result.reused ? 200 : 202).send(result);
       },
     );
 
@@ -77,6 +57,7 @@ export const verifyRoutes =
         const row = await runsRepo.getVerificationRun(deps.db, req.params.runId);
         if (!row) throw notFound("verification run");
         const run = verificationRunToApi(row);
+        run.status = effectiveStatus(run.status, run.heartbeatAt, await queueStateOf(deps.queues.verify, row.id));
         const findings = await findingsRepo.listFindingsForRun(deps.db, run.id);
         const result = resultOf(run);
         const report: VerificationReport = {

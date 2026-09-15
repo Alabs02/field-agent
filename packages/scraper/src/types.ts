@@ -1,5 +1,6 @@
 import type {
   PortalId,
+  ListingResult,
   ScrapedBrand,
   ScrapedBrandStub,
   ScrapedListingRow,
@@ -32,6 +33,7 @@ export interface FetchOptions {
   kind: SnapshotKind;
   signal?: AbortSignal;
   conditional?: ConditionalHeaders;
+  beforeSubrequest?: (url: string) => Promise<void>;
 }
 
 export interface FetchResult {
@@ -54,6 +56,8 @@ export interface ScrapeEngine {
 /** Resolves when one request may be sent to `host`. Shared across scrape and verify. */
 export interface Throttle {
   acquire(host: string, signal?: AbortSignal): Promise<void>;
+  lease?(host: string, signal?: AbortSignal): Promise<() => Promise<void>>;
+  cooldown?(host: string, until: number): Promise<void>;
 }
 
 export interface SitemapEntry {
@@ -80,6 +84,7 @@ export interface AdapterContext {
   log: Logger;
   signal?: AbortSignal;
   now: () => Date;
+  onRobots?: (rules: Pick<Discovery, "crawlDelayMs" | "isAllowed">) => void | Promise<void>;
 }
 
 export interface PortalAdapter {
@@ -89,7 +94,7 @@ export interface PortalAdapter {
   canonicalize(url: string): string;
   discover(ctx: AdapterContext): Promise<Discovery>;
   fetchDirectory(ctx: AdapterContext): Promise<ScrapedBrandStub[]>;
-  fetchListing(ctx: AdapterContext): Promise<ScrapedListingRow[]>;
+  fetchListing(ctx: AdapterContext): Promise<ListingResult>;
   fetchPromotion(ctx: AdapterContext, row: ScrapedListingRow): Promise<PromotionFetch>;
   fetchBrand(ctx: AdapterContext, storeUrl: string): Promise<ScrapedBrand>;
 }

@@ -50,7 +50,7 @@ export function brandToApi(b: BrandRow): Brand {
   };
 }
 
-export function promotionToApi(p: PromotionRow, b: BrandRow): Promotion {
+export function promotionToApi(p: PromotionRow, b: BrandRow, extra: { changedFields?: string[] | null } = {}): Promotion {
   return {
     id: p.id,
     portalId: p.portalId as Promotion["portalId"],
@@ -74,6 +74,8 @@ export function promotionToApi(p: PromotionRow, b: BrandRow): Promotion {
       lastVerifiedAt: iso(p.lastVerifiedAt),
       lastOutcome: p.lastVerificationOutcome,
       lastRunId: p.lastVerificationRunId,
+      coverage: p.lastVerificationCoverage,
+      changedFields: extra.changedFields ?? [],
     },
   };
 }
@@ -88,6 +90,9 @@ export function scrapeRunToApi(r: ScrapeRunRow): ScrapeRun {
     portalId: r.portalId as ScrapeRun["portalId"],
     jobId: r.id,
     triggeredBy: r.triggeredBy,
+    parentRunId: r.parentRunId,
+    cycleId: r.cycleId,
+    cancelRequestedAt: iso(r.cancelRequestedAt),
     status: r.status,
     phase: r.phase,
     progress: r.progress,
@@ -119,6 +124,9 @@ export function verificationRunToApi(r: VerificationRunRow): VerificationRun {
     portalId: r.portalId as VerificationRun["portalId"],
     jobId: r.id,
     triggeredBy: r.triggeredBy,
+    parentRunId: r.parentRunId,
+    cycleId: r.cycleId,
+    cancelRequestedAt: iso(r.cancelRequestedAt),
     status: r.status,
     attemptsMade: r.attemptsMade,
     sampleRate: r.sampleRate,

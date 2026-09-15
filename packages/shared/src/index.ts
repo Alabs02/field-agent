@@ -12,4 +12,5 @@ export * from "./pagination";
 export * from "./api";
 export * from "./errors";
 export * from "./auth";
+export * from "./operations";
 export * from "./queue-names";

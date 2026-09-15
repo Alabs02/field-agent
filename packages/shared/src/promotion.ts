@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { BrandSchema, BrandSummarySchema, BrandWithCountSchema } from "./brand";
+import { paginated } from "./pagination";
 import { PortalIdSchema } from "./portal";
 import { HttpUrl, IsoDateTime, Uuid } from "./primitives";
 
@@ -16,10 +17,17 @@ export type VerificationOutcome = z.infer<typeof VerificationOutcomeSchema>;
 export const DateSourceSchema = z.enum(["jsonld", "listing_serial", "none"]);
 export type DateSource = z.infer<typeof DateSourceSchema>;
 
+export const VerificationCoverageSchema = z.enum(["listing", "detail"]);
+export type VerificationCoverage = z.infer<typeof VerificationCoverageSchema>;
+
 export const PromotionVerificationSchema = z.object({
   lastVerifiedAt: IsoDateTime.nullable(),
   lastOutcome: VerificationOutcomeSchema.nullable(),
   lastRunId: Uuid.nullable(),
+  /** What the last check actually covered: the listing row only, or the detail page. null = never checked. */
+  coverage: VerificationCoverageSchema.nullable(),
+  /** Field names the last check found different at the source; empty when clean or unchecked. */
+  changedFields: z.array(z.string()),
 });
 export type PromotionVerification = z.infer<typeof PromotionVerificationSchema>;
 
@@ -60,3 +68,16 @@ export const BrandDetailSchema = BrandWithCountSchema.extend({
   promotions: z.array(PromotionSchema),
 });
 export type BrandDetail = z.infer<typeof BrandDetailSchema>;
+
+/** A list page plus the count of matching records whose known validity window includes now. */
+export const PromotionListSchema = paginated(PromotionSchema).extend({
+  withinValidity: z.number().int().nonnegative(),
+});
+export type PromotionList = z.infer<typeof PromotionListSchema>;
+
+/** One brand with its complete filtered promotion group (see GET /promotions/grouped). */
+export const PromotionGroupSchema = z.object({
+  brand: BrandWithCountSchema,
+  promotions: z.array(PromotionSchema),
+});
+export type PromotionGroup = z.infer<typeof PromotionGroupSchema>;

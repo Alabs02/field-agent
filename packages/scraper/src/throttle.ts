@@ -44,11 +44,35 @@ export class RedisThrottle implements Throttle {
     private readonly keyPrefix = "fa:throttle",
   ) {}
 
+  async lease(host: string, signal?: AbortSignal): Promise<() => Promise<void>> {
+    const key = `${this.keyPrefix}:inflight:${host}`;
+    const token = crypto.randomUUID();
+    for (;;) {
+      if (signal?.aborted) throw new AbortedError(signal.reason);
+      if (await this.redis.set(key, token, "PX", 120_000, "NX")) break;
+      await abortableSleep(250, signal);
+    }
+    const renewal = setInterval(() => { void this.redis.eval("if redis.call('GET',KEYS[1]) == ARGV[1] then return redis.call('PEXPIRE',KEYS[1],120000) end return 0", 1, key, token).catch(() => {}); }, 30_000);
+    renewal.unref();
+    return async () => {
+      clearInterval(renewal);
+      await this.redis.eval("if redis.call('GET',KEYS[1]) == ARGV[1] then return redis.call('DEL',KEYS[1]) end return 0", 1, key, token);
+    };
+  }
+
+  async cooldown(host: string, until: number): Promise<void> {
+    await this.redis.eval(`local current=tonumber(redis.call('GET',KEYS[1]) or '0')
+      local target=math.max(current,tonumber(ARGV[1]))
+      redis.call('SET',KEYS[1],target,'PX',math.max(1,target-tonumber(ARGV[2])+1000)) return target`,
+      1, `${this.keyPrefix}:${host}`, until, Date.now());
+  }
+
   async acquire(host: string, signal?: AbortSignal): Promise<void> {
     const key = `${this.keyPrefix}:${host}`;
     for (;;) {
       if (signal?.aborted) throw new AbortedError(signal.reason);
-      const wait = Number(await this.redis.eval(ACQUIRE_LUA, 1, key, Date.now(), this.minDelayMs));
+      const jitter = Math.floor(Math.random() * Math.min(500, this.minDelayMs * 0.1));
+      const wait = Number(await this.redis.eval(ACQUIRE_LUA, 1, key, Date.now(), this.minDelayMs + jitter));
       if (wait <= 0) return;
       await abortableSleep(Math.min(wait, MAX_SLEEP_MS), signal);
     }

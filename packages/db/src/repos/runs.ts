@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { RunListItem, RunsQuery, ScrapeOptions } from "@field-agent/shared";
 import type { Database } from "../client.js";
 import { scrapeRuns, verificationRuns } from "../schema/index.js";
@@ -105,18 +105,20 @@ export async function updateVerificationRun(db: Database, id: string, patch: Ver
   await db.update(verificationRuns).set(patch).where(eq(verificationRuns.id, id));
 }
 
-/** Newest first across both run types, paginated in memory (tens of rows per portal). */
+/** Pagination and totals cover both tables in SQL, with a stable ID tie-breaker. */
 export async function listRuns(db: Database, portalId: string, q: RunsQuery): Promise<{ items: RunListItem[]; total: number }> {
-  const all: RunListItem[] = [];
-  if (q.type !== "verify") {
-    const rows = await db.query.scrapeRuns.findMany({ where: eq(scrapeRuns.portalId, portalId), orderBy: [desc(scrapeRuns.queuedAt)], limit: 500 });
-    all.push(...rows.map(scrapeRunToApi));
-  }
-  if (q.type !== "scrape") {
-    const rows = await db.query.verificationRuns.findMany({ where: eq(verificationRuns.portalId, portalId), orderBy: [desc(verificationRuns.queuedAt)], limit: 500 });
-    all.push(...rows.map(verificationRunToApi));
-  }
-  all.sort((a, b) => (a.queuedAt < b.queuedAt ? 1 : a.queuedAt > b.queuedAt ? -1 : 0));
-  const start = (q.page - 1) * q.pageSize;
-  return { items: all.slice(start, start + q.pageSize), total: all.length };
+  const union = sql`(select id, 'scrape' as type, status, queued_at from scrape_runs where portal_id=${portalId}
+    union all select id, 'verify' as type, status, queued_at from verification_runs where portal_id=${portalId}) r`;
+  const where = sql`true ${q.type ? sql`and type=${q.type}` : sql``} ${q.status ? sql`and status=${q.status}` : sql``}
+    ${q.from ? sql`and queued_at >= ${q.from}::timestamptz` : sql``} ${q.to ? sql`and queued_at <= ${q.to}::timestamptz` : sql``}`;
+  const [total] = await db.execute(sql`select count(*)::int as n from ${union} where ${where}`);
+  const page = await db.execute(sql`select id,type from ${union} where ${where} order by queued_at desc,id desc limit ${q.pageSize} offset ${(q.page-1)*q.pageSize}`);
+  const ids = page.map(row => String(row.id));
+  if (!ids.length) return { items: [], total: Number(total?.n ?? 0) };
+  const [scrapes, verifies] = await Promise.all([
+    db.select().from(scrapeRuns).where(inArray(scrapeRuns.id, ids)),
+    db.select().from(verificationRuns).where(inArray(verificationRuns.id, ids)),
+  ]);
+  const byId = new Map<string, RunListItem>([...scrapes.map(scrapeRunToApi), ...verifies.map(verificationRunToApi)].map(row => [row.id, row]));
+  return { items: ids.map(id => byId.get(id)!), total: Number(total?.n ?? 0) };
 }

@@ -7,6 +7,8 @@ export * from "./repos/mappers.js";
 export * as brandsRepo from "./repos/brands.js";
 export * as promotionsRepo from "./repos/promotions.js";
 export * as runsRepo from "./repos/runs.js";
+export * as operationsRepo from "./repos/operations.js";
+export { overview } from "./repos/overview.js";
 export * as findingsRepo from "./repos/findings.js";
 export * as snapshotsRepo from "./repos/snapshots.js";
 export type { PromotionWithBrand, PromotionWrite, UpsertOutcome } from "./repos/promotions.js";

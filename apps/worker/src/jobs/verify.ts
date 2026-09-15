@@ -16,6 +16,7 @@ import {
   detailDiff,
   effectiveDelayMs,
   excelSerialToEndOfDay,
+  excelSerialToStartOfDay,
   isScrapeError,
   JobTimeoutError,
   listingFlags,
@@ -28,6 +29,8 @@ import type { WorkerContext } from "../lib/context.js";
 import { makeFetcher } from "../lib/fetcher.js";
 import { RunTracker } from "../lib/runTracker.js";
 import { withTimeout } from "../lib/withTimeout.js";
+import { watchCancellation } from "../lib/cancellation.js";
+import { isSourceBlocked, recordRunNotice } from "../lib/notify.js";
 
 interface VerifyState {
   status: "running" | "completed" | "completed_with_errors" | "failed";
@@ -50,6 +53,7 @@ export async function processVerifyJob(ctx: WorkerContext, job: Job<VerifyJobPay
     (patch) => runsRepo.updateVerificationRun(db, payload.runId, patch),
     job,
     (s) => ({ pct: 0, counts: s }),
+    runRow.errors,
   );
   await runsRepo.updateVerificationRun(db, payload.runId, {
     status: "running",
@@ -66,9 +70,11 @@ export async function processVerifyJob(ctx: WorkerContext, job: Job<VerifyJobPay
   });
   tracker.start();
   log.info({ sampleRate: payload.sampleRate, promotionIds: payload.promotionIds?.length ?? null }, "verification started");
+  const cancellation = watchCancellation(db, "verify", payload.runId);
 
   try {
-    const result = await withTimeout(env.VERIFY_JOB_TIMEOUT_MS, (signal) => runVerify(ctx, payload, tracker, signal, log));
+    await cancellation.check();
+    const result = await withTimeout(env.VERIFY_JOB_TIMEOUT_MS, (signal) => runVerify(ctx, payload, tracker, signal, log), cancellation.signal);
     tracker.stop();
     const finalStatus = tracker.state.unverifiable === 0 ? "completed" : "completed_with_errors";
     tracker.update((s) => {
@@ -77,6 +83,22 @@ export async function processVerifyJob(ctx: WorkerContext, job: Job<VerifyJobPay
     await tracker.flush(true);
     await runsRepo.updateVerificationRun(db, payload.runId, { status: finalStatus, finishedAt: new Date() });
     log.info({ counts: result, requests: tracker.requestsMade }, "verification finished");
+    // The run's own status says how processing went; drift is a separate, data-level notice.
+    const discrepancies = result.changed + result.missingAtSource;
+    if (discrepancies > 0) {
+      await recordRunNotice(db, log, {
+        portalId: payload.portalId,
+        runId: payload.runId,
+        eventKey: `drift:${payload.runId}`,
+        action: "verification.drift_detected",
+        actor: payload.requestedBy,
+        label: `Verification ${payload.runId.slice(0, 8)}`,
+        message: `${discrepancies} discrepanc${discrepancies === 1 ? "y" : "ies"} observed at the source: ${result.changed} changed, ${result.missingAtSource} gone from source`,
+        href: `/app/verify/${payload.runId}`,
+        severity: "warning",
+        after: { ...result },
+      });
+    }
     return result;
   } catch (err) {
     tracker.stop();
@@ -88,13 +110,28 @@ export async function processVerifyJob(ctx: WorkerContext, job: Job<VerifyJobPay
     });
     await tracker.flush(true);
     await runsRepo.updateVerificationRun(db, payload.runId, {
-      status: retryable ? "queued" : "failed",
+      status: cancellation.signal.aborted ? "cancelled" : retryable ? "queued" : "failed",
       error: err instanceof Error ? err.message : String(err),
       finishedAt: retryable ? null : new Date(),
     });
+    if (isSourceBlocked(err)) {
+      await recordRunNotice(db, log, {
+        portalId: payload.portalId,
+        runId: payload.runId,
+        eventKey: `blocked:${payload.runId}`,
+        action: "source.blocked",
+        actor: payload.requestedBy,
+        label: `Verification ${payload.runId.slice(0, 8)}`,
+        message: "The source served an anti-bot challenge. The page was kept as an HTML snapshot for review; no further requests were made in this run",
+        href: `/app/verify/${payload.runId}`,
+        severity: "error",
+      });
+    }
     log.error({ err, retryable, timedOut }, "verification failed");
     if (retryable) throw err;
     throw new UnrecoverableError(err instanceof Error ? err.message : String(err));
+  } finally {
+    cancellation.stop();
   }
 }
 
@@ -131,13 +168,25 @@ async function runVerify(
   const portalId = payload.portalId;
   const now = () => new Date();
 
-  const promos = await promotionsRepo.listActivePromotionsWithBrand(db, portalId, payload.promotionIds);
+  // Removed records are re-checked for a bounded window so a reappearance is caught without
+  // paying a detail request forever for every promotion the portal has ever dropped.
+  const promos = await promotionsRepo.listActivePromotionsWithBrand(db, portalId, payload.promotionIds, { removedWithinDays: env.VERIFY_REMOVED_WINDOW_DAYS });
+  const priorFindings = await findingsRepo.listFindingsForRun(db, payload.runId);
+  const alreadyChecked = new Set(priorFindings.map(f => f.promotion.id));
+  tracker.update(s => {
+    s.checked = priorFindings.length;
+    s.clean = priorFindings.filter(f => f.kind === "clean").length;
+    s.changed = priorFindings.filter(f => f.kind === "changed").length;
+    s.missing = priorFindings.filter(f => f.kind === "missing_at_source").length;
+    s.unverifiable = priorFindings.filter(f => f.kind === "unverifiable").length;
+  });
   if (promos.length === 0) {
     log.info("nothing to verify");
     return { checked: 0, clean: 0, changed: 0, missingAtSource: 0, unverifiable: 0 };
   }
 
   let discovery: Discovery | null = null;
+  let allowed = (_url: string) => true;
   let throttle = ctx.makeThrottle(env.SCRAPE_MIN_DELAY_MS);
   const fetcher = makeFetcher({
     db,
@@ -150,10 +199,15 @@ async function runVerify(
     runId: payload.runId,
     snapshotMode: env.SNAPSHOT_MODE,
     signal,
-    isAllowed: () => (discovery ? discovery.isAllowed : () => true),
+    isAllowed: () => allowed,
     onRequest: () => tracker.countRequest(),
   });
-  const actx: AdapterContext = { fetch: fetcher, log, signal, now };
+  const actx: AdapterContext = { fetch: fetcher, log, signal, now, onRobots: async rules => {
+    allowed = rules.isAllowed;
+    const delay = effectiveDelayMs(env.SCRAPE_MIN_DELAY_MS, rules.crawlDelayMs, env.SCRAPE_RESPECT_CRAWL_DELAY);
+    throttle = ctx.makeThrottle(delay);
+    await throttle.cooldown(new URL(adapter.baseUrl).hostname, Date.now() + delay);
+  } };
 
   // Stage 1: sitemap (+robots) — one request each.
   discovery = await adapter.discover(actx);
@@ -162,11 +216,15 @@ async function runVerify(
 
   // Stage 2: listing — one request.
   const listing = new Map<string, ScrapedListingRow>();
-  for (const row of await adapter.fetchListing(actx)) listing.set(row.sourceId, row);
+  const listingResult = await adapter.fetchListing(actx);
+  for (const row of listingResult.rows) listing.set(row.sourceId, row);
 
-  const findings: findingsRepo.FindingWrite[] = [];
-  const record = (pb: PromotionWithBrand, kind: VerificationOutcome, fieldChanges: FieldChange[], reason: string | null, evidence: FindingEvidence) => {
-    findings.push({ runId: payload.runId, promotionId: pb.promotion.id, kind, fieldChanges, reason, evidence });
+  const record = async (pb: PromotionWithBrand, kind: VerificationOutcome, fieldChanges: FieldChange[], reason: string | null, evidence: FindingEvidence) => {
+    const p = pb.promotion;
+    await findingsRepo.insertFindings(db, [{ runId: payload.runId, promotionId: p.id, kind, fieldChanges, reason, evidence,
+      promotionSnapshot: { id: p.id, sourceId: p.sourceId, title: p.title, canonicalUrl: p.canonicalUrl, brandName: pb.brand.name },
+      baselineUpdatedAt: p.updatedAt }]);
+    await promotionsRepo.updateVerificationState(db, p.id, { at: now(), outcome: kind, runId: payload.runId, baselineUpdatedAt: p.updatedAt, checkedVia: evidence.checkedVia });
     tracker.update((s) => {
       s.checked += 1;
       if (kind === "clean") s.clean += 1;
@@ -179,6 +237,7 @@ async function runVerify(
   // Stage 3: per promotion, decide from cheap evidence whether a detail fetch is warranted.
   for (const pb of promos) {
     if (signal.aborted) throw new AbortedError(signal.reason);
+    if (alreadyChecked.has(pb.promotion.id)) continue;
     const p = pb.promotion;
     const url = adapter.canonicalize(p.canonicalUrl);
     const row = listing.get(p.sourceId);
@@ -188,46 +247,45 @@ async function runVerify(
     const stored = comparable(pb);
     const base: Omit<FindingEvidence, "checkedVia" | "detailStatus"> = { inSitemap, inListing, url };
 
+    if (!row && !listingResult.complete) {
+      await record(pb, "unverifiable", [], "listing_incomplete", { ...base, checkedVia: "listing", detailStatus: null });
+      continue;
+    }
     if (!row) {
       // Gone from the listing. Confirm with the page itself before calling it missing.
       const r = await tryFetchDetail(ctx, actx, row ?? rowFromStored(pb, url), url);
       if (r.kind === "missing") {
-        record(pb, "missing_at_source", [], null, { ...base, checkedVia: "detail", detailStatus: r.status });
+        await record(pb, "missing_at_source", [], null, { ...base, checkedVia: "detail", detailStatus: r.status });
       } else if (r.kind === "ok") {
         const changes: FieldChange[] = [{ field: "listed", before: true, after: false }, ...detailDiff(stored, r.fresh, tz)];
-        record(pb, "changed", changes, null, { ...base, checkedVia: "detail", detailStatus: r.status });
+        await record(pb, "changed", changes, null, { ...base, checkedVia: "detail", detailStatus: r.status });
       } else {
-        record(pb, "unverifiable", [], r.reason, { ...base, checkedVia: "detail", detailStatus: r.status });
+        await record(pb, "unverifiable", [], r.reason, { ...base, checkedVia: "detail", detailStatus: r.status });
       }
       continue;
     }
 
     const endsOnFromRow = row.endSerial != null ? dayInZone(excelSerialToEndOfDay(row.endSerial, tz), tz) : null;
     const flags: FieldName[] = listingFlags(stored, row, endsOnFromRow, tz);
-    const stale = entry?.lastmod != null && entry.lastmod > p.scrapedAt;
+    const stale = entry?.lastmod != null && entry.lastmod > (p.detailFetchedAt ?? p.scrapedAt);
     const isSampled = sampled(payload.runId, p.id, payload.sampleRate);
 
-    if (flags.length || stale || isSampled) {
+    if (flags.length || stale || isSampled || (p.lastVerificationOutcome != null && p.lastVerificationOutcome !== "clean")) {
       const r = await tryFetchDetail(ctx, actx, row, url);
       if (r.kind === "ok") {
         const changes = detailDiff(stored, r.fresh, tz);
-        record(pb, changes.length ? "changed" : "clean", changes, null, { ...base, checkedVia: "detail", detailStatus: r.status, listingFlags: flags });
+        await record(pb, changes.length ? "changed" : "clean", changes, null, { ...base, checkedVia: "detail", detailStatus: r.status, listingFlags: flags });
       } else if (r.kind === "missing") {
-        record(pb, "missing_at_source", [], null, { ...base, checkedVia: "detail", detailStatus: r.status, listingFlags: flags });
+        await record(pb, "missing_at_source", [], null, { ...base, checkedVia: "detail", detailStatus: r.status, listingFlags: flags });
       } else {
         // Listing evidence alone never asserts a change.
-        record(pb, "unverifiable", [], r.reason, { ...base, checkedVia: "detail", detailStatus: r.status, listingFlags: flags });
+        await record(pb, "unverifiable", [], r.reason, { ...base, checkedVia: "detail", detailStatus: r.status, listingFlags: flags });
       }
     } else {
-      record(pb, "clean", [], null, { ...base, checkedVia: "listing", detailStatus: null });
+      await record(pb, "clean", [], null, { ...base, checkedVia: "listing", detailStatus: null });
     }
   }
 
-  await findingsRepo.insertFindings(db, findings);
-  const at = now();
-  for (const f of findings) {
-    await promotionsRepo.updateVerificationState(db, f.promotionId, { at, outcome: f.kind, runId: payload.runId });
-  }
   const s = tracker.state;
   return { checked: s.checked, clean: s.clean, changed: s.changed, missingAtSource: s.missing, unverifiable: s.unverifiable };
 }
@@ -254,14 +312,14 @@ async function tryFetchDetail(ctx: WorkerContext, actx: AdapterContext, row: Scr
         title: p.title,
         description: p.description,
         imageUrl: p.imageUrl,
-        startsAt: p.startsAt ? new Date(p.startsAt) : null,
+        startsAt: p.startsAt ? new Date(p.startsAt) : p.startSerial != null ? excelSerialToStartOfDay(p.startSerial, tz) : null,
         endsAt: p.endsAt ? new Date(p.endsAt) : p.endSerial != null ? excelSerialToEndOfDay(p.endSerial, tz) : null,
         brandSourceId: p.brandSourceId,
         collection: p.collection,
       },
     };
   } catch (err) {
-    if (err instanceof AbortedError) throw err;
+    if (err instanceof AbortedError || (isScrapeError(err) && err.code === "source_blocked")) throw err;
     if (isScrapeError(err)) {
       if (err.code === "http_error" && (err.status === 404 || err.status === 410)) return { kind: "missing", status: err.status };
       const reason = err.code === "http_error" ? `http_${err.status}` : err.code;

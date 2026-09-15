@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -58,7 +59,29 @@ export const adminRoutes =
         if (req.user?.id === req.params.id && req.body.role !== "super_admin") {
           throw new HttpError(409, "CONFLICT", "you cannot remove your own super_admin role");
         }
-        const [row] = await deps.db.update(tables.user).set({ role: req.body.role }).where(eq(tables.user.id, req.params.id)).returning();
+        // The role change and its audit event commit together, or not at all.
+        const row = await deps.db.transaction(async (tx) => {
+          const [before] = await tx.select({ role: tables.user.role, email: tables.user.email }).from(tables.user).where(eq(tables.user.id, req.params.id)).for("update");
+          if (!before) return undefined;
+          const [updated] = await tx.update(tables.user).set({ role: req.body.role }).where(eq(tables.user.id, req.params.id)).returning();
+          if (updated && before.role !== req.body.role) {
+            await tx.insert(tables.auditEvents).values({
+              portalId: deps.env.PORTAL_ID,
+              eventKey: randomUUID(),
+              action: "user.role_changed",
+              actor: req.user?.email ?? "local operator",
+              entityType: "user",
+              entityId: updated.id,
+              label: updated.email,
+              before: { role: before.role },
+              after: { role: req.body.role },
+              message: `Role changed for ${updated.email}: ${before.role ?? "none"} to ${req.body.role}`,
+              href: "/app/admin",
+              severity: "info",
+            });
+          }
+          return updated;
+        });
         if (!row) throw notFound("user");
         return { id: row.id, email: row.email, name: row.name, role: req.body.role, createdAt: row.createdAt.toISOString() };
       },

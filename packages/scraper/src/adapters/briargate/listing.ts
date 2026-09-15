@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { ScrapedListingRowSchema, type Collection, type ScrapedListingRow } from "@field-agent/shared";
+import { ScrapedListingRowSchema, type Collection, type ListingResult, type ScrapedListingRow } from "@field-agent/shared";
 import { ParseError } from "../../errors.js";
 import { normalizeText } from "../../normalize.js";
 import { safeHttpUrl } from "../../url.js";
@@ -13,17 +13,23 @@ export const COLLECTION_IDS: Record<string, Collection> = {
 
 const DEAL_ID_RE = /\/deals\/(\d+)\/?/;
 
-export function parseListing(html: string, canonicalize: (u: string) => string, pageUrl: string): ScrapedListingRow[] {
+export function parseListing(html: string, canonicalize: (u: string) => string, pageUrl: string): ListingResult {
   const $ = cheerio.load(html);
   const rows: ScrapedListingRow[] = [];
   const problems: string[] = [];
+  const rowErrors: ListingResult["rowErrors"] = [];
+  const seen = new Set<string>();
+  const reject = (sourceId: string | null, message: string) => {
+    problems.push(message);
+    rowErrors.push({ sourceId, message });
+  };
 
   $(".deal-row").each((_, el) => {
     const row = $(el);
     const href = row.find("a[href]").first().attr("href") ?? "";
     const idMatch = DEAL_ID_RE.exec(href);
     if (!idMatch) {
-      problems.push(`deal-row without /deals/{id}/ link (href=${href})`);
+      reject(null, `deal-row without /deals/{id}/ link (href=${href})`);
       return;
     }
     const sourceId = idMatch[1]!;
@@ -50,9 +56,14 @@ export function parseListing(html: string, canonicalize: (u: string) => string, 
     };
     const parsed = ScrapedListingRowSchema.safeParse(candidate);
     if (!parsed.success) {
-      problems.push(`row ${sourceId}: ${parsed.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`);
+      reject(sourceId, `row ${sourceId}: ${parsed.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`);
       return;
     }
+    if (seen.has(sourceId)) {
+      reject(sourceId, `duplicate listing identity ${sourceId}`);
+      return;
+    }
+    seen.add(sourceId);
     rows.push(parsed.data);
   });
 
@@ -64,7 +75,13 @@ export function parseListing(html: string, canonicalize: (u: string) => string, 
       pageUrl,
     );
   }
-  return rows;
+  const completenessReasons = rowErrors.length ? ["Some listing rows were rejected"] : [];
+  // This portal currently publishes its complete catalog in one document.
+  // A new pagination mechanism must be implemented before removals are safe.
+  if ($('a[rel="next"], link[rel="next"], [data-next-page], [data-infinite-scroll]').length) {
+    completenessReasons.push("Unsupported source pagination detected");
+  }
+  return { rows, rowErrors, complete: completenessReasons.length === 0, completenessReasons, observedRows: $(".deal-row").length };
 }
 
 function toNumber(v: string | undefined): number | null {

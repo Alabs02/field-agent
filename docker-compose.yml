@@ -103,32 +103,18 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  # One worker service; the image target and engine are chosen together so browser mode never
+  # starts the HTTP worker alongside it:
+  #   docker compose up                                              -> HTTP engine (default)
+  #   WORKER_TARGET=worker-browser SCRAPE_ENGINE=playwright docker compose up --build
   worker:
     build:
       context: .
-      target: worker
-    image: field-agent-worker
+      target: ${WORKER_TARGET:-worker}
+    image: field-agent-${WORKER_TARGET:-worker}
     environment:
       <<: [*app-env, *scrape-env]
-      SCRAPE_ENGINE: http
-    depends_on:
-      redis:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
-    restart: unless-stopped
-    stop_grace_period: 30s
-
-  # Same worker on the Playwright image. `docker compose --profile browser up`.
-  worker-browser:
-    profiles: ["browser"]
-    build:
-      context: .
-      target: worker-browser
-    image: field-agent-worker-browser
-    environment:
-      <<: [*app-env, *scrape-env]
-      SCRAPE_ENGINE: playwright
+      SCRAPE_ENGINE: ${SCRAPE_ENGINE:-http}
     depends_on:
       redis:
         condition: service_healthy

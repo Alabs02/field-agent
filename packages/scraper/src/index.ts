@@ -11,6 +11,7 @@ export { HttpEngine, type HttpEngineOptions } from "./engines/http.js";
 export { PlaywrightEngine, type PlaywrightEngineOptions } from "./engines/playwright.js";
 export { BriargateAdapter, type BriargateAdapterOptions } from "./adapters/briargate/index.js";
 export { parseListing, COLLECTION_IDS } from "./adapters/briargate/listing.js";
+export { retryAfterUntil, isChallengePage } from "./source-policy.js";
 export { parseDealPage } from "./adapters/briargate/deal.js";
 export { parseStorePage, parseStoreInfoBlock, STORE_URL_RE } from "./adapters/briargate/store.js";
 export { parseDirectory } from "./adapters/briargate/directory.js";

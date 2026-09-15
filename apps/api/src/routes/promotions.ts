@@ -7,7 +7,8 @@ import {
   paginated,
   paginate,
   PromotionDetailSchema,
-  PromotionSchema,
+  PromotionGroupSchema,
+  PromotionListSchema,
   PromotionsQuerySchema,
   BRIARGATE_PORTAL,
 } from "@field-agent/shared";
@@ -29,11 +30,28 @@ export const promotionRoutes =
         schema: {
           tags: ["promotions"],
           querystring: PromotionsQuerySchema,
-          response: { 200: paginated(PromotionSchema), 400: ApiErrorSchema },
+          response: { 200: PromotionListSchema, 400: ApiErrorSchema },
         },
       },
       async (req) => {
-        const { items, total } = await promotionsRepo.listPromotions(deps.db, portalId, req.query, tz);
+        const { items, total, withinValidity } = await promotionsRepo.listPromotions(deps.db, portalId, req.query, tz);
+        return { ...paginate(items, total, req.query.page, req.query.pageSize), withinValidity };
+      },
+    );
+
+    // Grouped by brand: pages count brands, and every brand on the page carries its complete filtered group.
+    app.get(
+      "/promotions/grouped",
+      {
+        preHandler: guard("read"),
+        schema: {
+          tags: ["promotions"],
+          querystring: PromotionsQuerySchema,
+          response: { 200: paginated(PromotionGroupSchema), 400: ApiErrorSchema },
+        },
+      },
+      async (req) => {
+        const { items, total } = await promotionsRepo.listPromotionsGrouped(deps.db, portalId, req.query, tz);
         return paginate(items, total, req.query.page, req.query.pageSize);
       },
     );

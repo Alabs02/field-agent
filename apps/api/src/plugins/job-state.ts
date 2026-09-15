@@ -32,7 +32,7 @@ export async function queueStateOf(queue: Queue, jobId: string): Promise<QueueSt
 
 /**
  * Reconcile the durable row with what the queue says. A row that claims
- * "running" with a stale heartbeat and no active job is reported as
+ * "running" with a stale heartbeat is reported as
  * "stalled" so an operator sees a dead worker without waiting for BullMQ.
  */
 export function effectiveStatus(
@@ -45,7 +45,7 @@ export function effectiveStatus(
     const beat = heartbeatAt ? new Date(heartbeatAt).getTime() : 0;
     const stale = now - beat > STALE_HEARTBEAT_MS;
     if (queueState === "failed") return "failed";
-    if (stale && queueState !== "active") return "stalled";
+    if (stale) return "stalled";
   }
   if (rowStatus === "queued" && queueState === "failed") return "failed";
   return rowStatus;

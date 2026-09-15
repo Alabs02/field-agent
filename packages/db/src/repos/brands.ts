@@ -126,6 +126,12 @@ export async function listBrands(db: Database, portalId: string, q: BrandsQuery)
   const where = and(
     eq(brands.portalId, portalId),
     q.search ? ilike(brands.name, `%${q.search}%`) : undefined,
+    q.category ? sql`exists(select 1 from unnest(${brands.categories}) c where c ilike ${q.category})` : undefined,
+    q.enrichment === "fetched" ? sql`${brands.storePageFetchedAt} is not null` : undefined,
+    q.enrichment === "pending" ? isNull(brands.storePageFetchedAt) : undefined,
+    q.enrichment === "website" ? sql`${brands.websiteUrl} is not null` : undefined,
+    q.enrichment === "hours" ? sql`${brands.hours} is not null` : undefined,
+    q.enrichment === "socials" ? sql`jsonb_array_length(${brands.socialLinks}) > 0` : undefined,
   );
   const having = q.hasPromotions ? sql`count(${promotions.id}) > 0` : undefined;
 
@@ -139,7 +145,7 @@ export async function listBrands(db: Database, portalId: string, q: BrandsQuery)
 
   const order = q.sort === "alpha" ? [asc(brands.name)] : [desc(promoCount), asc(brands.name)];
   const items = await withHaving
-    .orderBy(...order)
+    .orderBy(...order, asc(brands.id))
     .limit(q.pageSize)
     .offset((q.page - 1) * q.pageSize);
 

@@ -10,6 +10,14 @@ export const ERROR_CODES = [
   "QUEUE_UNAVAILABLE",
   "SERVICE_UNAVAILABLE",
   "INTERNAL",
+  "BOUNDED_CONTROLS",
+  "LAUNCH_BUSY",
+  "ACTIVE_WORK",
+  "REVIEWER_COOLDOWN",
+  "NOT_RETRYABLE",
+  "CANCEL_FIRST",
+  "CYCLE_BUSY",
+  "EXPORT_TOO_LARGE",
 ] as const;
 export const ErrorCodeSchema = z.enum(ERROR_CODES);
 export type ErrorCode = z.infer<typeof ErrorCodeSchema>;

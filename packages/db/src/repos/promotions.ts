@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, ilike, inArray, isNotNull, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import type {
+  BrandWithCount,
   Collection,
   DateSource,
   Promotion,
@@ -94,6 +95,7 @@ export async function upsertPromotion(db: Database, w: PromotionWrite): Promise<
         scrapedAt: w.now,
         detailFetchedAt: w.detailFetchedAt,
         lastScrapeRunId: w.runId,
+        updatedAt: w.now,
       })
       .returning();
     return { row: row!, outcome: "persisted" };
@@ -108,6 +110,7 @@ export async function upsertPromotion(db: Database, w: PromotionWrite): Promise<
         removedAt: null,
         lastScrapeRunId: w.runId,
         detailFetchedAt: w.detailFetchedAt ?? existing.detailFetchedAt,
+        sourcePayload: w.sourcePayload,
         updatedAt: w.now,
       })
       .where(eq(promotions.id, existing.id))
@@ -158,17 +161,26 @@ export interface PromotionWithBrand {
   brand: BrandRow;
 }
 
-export async function listActivePromotionsWithBrand(db: Database, portalId: string, ids?: string[]): Promise<PromotionWithBrand[]> {
+/**
+ * Promotions a verification run should look at. Listed records always; removed records only
+ * while recent (`removedWithinDays`), so confirming a disappearance costs a detail request for a
+ * bounded window instead of growing with every removal the portal ever made.
+ */
+export async function listActivePromotionsWithBrand(
+  db: Database,
+  portalId: string,
+  ids?: string[],
+  opts: { removedWithinDays?: number } = {},
+): Promise<PromotionWithBrand[]> {
+  const removedScope =
+    opts.removedWithinDays != null
+      ? or(isNull(promotions.removedAt), sql`${promotions.removedAt} >= now() - make_interval(days => ${opts.removedWithinDays})`)
+      : isNull(promotions.removedAt);
   const rows = await db
     .select({ promotion: promotions, brand: brands })
     .from(promotions)
     .innerJoin(brands, eq(brands.id, promotions.brandId))
-    .where(
-      and(
-        eq(promotions.portalId, portalId),
-        ids?.length ? inArray(promotions.id, ids) : isNull(promotions.removedAt),
-      ),
-    )
+    .where(and(eq(promotions.portalId, portalId), ids?.length ? inArray(promotions.id, ids) : removedScope))
     .orderBy(asc(promotions.sourceId));
   return rows;
 }
@@ -176,26 +188,34 @@ export async function listActivePromotionsWithBrand(db: Database, portalId: stri
 export async function updateVerificationState(
   db: Database,
   promotionId: string,
-  state: { at: Date; outcome: VerificationOutcome; runId: string },
+  state: { at: Date; outcome: VerificationOutcome; runId: string; baselineUpdatedAt: Date; checkedVia: "listing" | "detail" },
 ): Promise<void> {
   await db
     .update(promotions)
-    .set({ lastVerifiedAt: state.at, lastVerificationOutcome: state.outcome, lastVerificationRunId: state.runId })
-    .where(eq(promotions.id, promotionId));
+    .set({ lastVerifiedAt: state.at, lastVerificationOutcome: state.outcome, lastVerificationRunId: state.runId, lastVerificationCoverage: state.checkedVia })
+    // Rows inserted before updated_at was set explicitly carry Postgres microsecond precision;
+    // compare at millisecond precision so a JS Date baseline still matches them.
+    .where(and(eq(promotions.id, promotionId),
+      sql`date_trunc('milliseconds', ${promotions.updatedAt}) = date_trunc('milliseconds', ${state.baselineUpdatedAt.toISOString()}::timestamptz)`,
+      state.outcome === "clean" && state.checkedVia !== "detail"
+        ? or(isNull(promotions.lastVerificationOutcome), eq(promotions.lastVerificationOutcome, "clean")) : undefined));
 }
 
 function dayInTz(col: SQL | typeof promotions.startsAt | typeof promotions.endsAt, tz: string): SQL {
   return sql`(${col} AT TIME ZONE ${tz})::date`;
 }
 
-export async function listPromotions(
-  db: Database,
-  portalId: string,
-  q: PromotionsQuery,
-  tz: string,
-): Promise<{ items: Promotion[]; total: number }> {
+function promotionWhere(portalId: string, q: PromotionsQuery, tz: string) {
   const conditions: (SQL | undefined)[] = [eq(promotions.portalId, portalId)];
-  if (!q.includeRemoved) conditions.push(isNull(promotions.removedAt));
+  if (q.presence === "removed") conditions.push(isNotNull(promotions.removedAt));
+  else if (q.presence !== "all" && !q.includeRemoved) conditions.push(isNull(promotions.removedAt));
+  if (q.firstSeenFrom) conditions.push(sql`${promotions.firstSeenAt} >= ${q.firstSeenFrom}::timestamptz`);
+  if (q.firstSeenTo) conditions.push(sql`${promotions.firstSeenAt} <= ${q.firstSeenTo}::timestamptz`);
+  if (q.endingSoon) conditions.push(sql`${promotions.endsAt} between now() and now()+interval '7 days'`);
+  if (q.attention) conditions.push(inArray(promotions.lastVerificationOutcome, ["changed", "missing_at_source", "unverifiable"]));
+  if (q.freshness === "never_detail") conditions.push(isNull(promotions.detailFetchedAt));
+  if (q.freshness === "fresh") conditions.push(sql`${promotions.lastSeenAt} >= now()-interval '24 hours'`);
+  if (q.freshness === "stale") conditions.push(sql`${promotions.lastSeenAt} < now()-interval '24 hours'`);
   if (q.search) {
     const needle = `%${q.search}%`;
     conditions.push(or(ilike(promotions.title, needle), ilike(brands.name, needle)));
@@ -225,7 +245,27 @@ export async function listPromotions(
         : eq(promotions.lastVerificationOutcome, q.verification),
     );
   }
-  const where = and(...conditions);
+  return and(...conditions);
+
+}
+
+/**
+ * Field names from the finding recorded by the promotion's last verification run.
+ * A correlated scalar, so a page of N promotions costs one query, not N+1.
+ */
+const changedFieldsSql = sql<string[]>`coalesce((
+  select array_agg(x->>'field' order by x->>'field')
+  from verification_findings f cross join lateral jsonb_array_elements(f.field_changes) x
+  where f.promotion_id = ${promotions.id} and f.run_id = ${promotions.lastVerificationRunId}
+), '{}'::text[])`;
+
+export async function listPromotions(
+  db: Database,
+  portalId: string,
+  q: PromotionsQuery,
+  tz: string,
+): Promise<{ items: Promotion[]; total: number; withinValidity: number }> {
+  const where = promotionWhere(portalId, q, tz);
 
   const orderBy = (() => {
     switch (q.sort) {
@@ -241,33 +281,84 @@ export async function listPromotions(
     }
   })();
 
+  // "Listed by the portal" (total) and "currently within known validity dates" are different
+  // questions; both are answered over the same filtered scope so the two numbers can be compared.
   const [totalRow] = await db
-    .select({ n: count() })
+    .select({
+      n: count(),
+      withinValidity: sql<number>`count(*) filter (where (${promotions.startsAt} is null or ${promotions.startsAt} <= now()) and ${promotions.endsAt} is not null and ${promotions.endsAt} >= now())::int`,
+    })
     .from(promotions)
     .innerJoin(brands, eq(brands.id, promotions.brandId))
     .where(where);
 
   const rows = await db
-    .select({ promotion: promotions, brand: brands })
+    .select({ promotion: promotions, brand: brands, changedFields: changedFieldsSql })
     .from(promotions)
     .innerJoin(brands, eq(brands.id, promotions.brandId))
     .where(where)
-    .orderBy(...orderBy)
+    .orderBy(...orderBy, asc(promotions.id))
     .limit(q.pageSize)
     .offset((q.page - 1) * q.pageSize);
 
-  return { items: rows.map((r) => promotionToApi(r.promotion, r.brand)), total: totalRow?.n ?? 0 };
+  return { items: rows.map((r) => promotionToApi(r.promotion, r.brand, { changedFields: r.changedFields })), total: totalRow?.n ?? 0, withinValidity: Number(totalRow?.withinValidity ?? 0) };
+}
+
+/**
+ * Grouped view: paginate over the brands that have matching promotions, then return each
+ * selected brand's complete filtered group, so a brand is never split across pages.
+ */
+export async function listPromotionsGrouped(
+  db: Database,
+  portalId: string,
+  q: PromotionsQuery,
+  tz: string,
+): Promise<{ items: Array<{ brand: BrandWithCount; promotions: Promotion[] }>; total: number }> {
+  const where = promotionWhere(portalId, q, tz);
+  const inScope = sql<number>`count(${promotions.id})::int`;
+  const brandPage = await db
+    .select({ brand: brands, promotionCount: inScope })
+    .from(promotions)
+    .innerJoin(brands, eq(brands.id, promotions.brandId))
+    .where(where)
+    .groupBy(brands.id)
+    .orderBy(q.sort === "newest" ? sql`max(${promotions.firstSeenAt}) desc` : q.sort === "endingSoon" ? sql`min(${promotions.endsAt}) asc nulls last` : asc(brands.name), asc(brands.name), asc(brands.id))
+    .limit(q.pageSize)
+    .offset((q.page - 1) * q.pageSize);
+  const [totalRow] = await db
+    .select({ n: sql<number>`count(distinct ${promotions.brandId})::int` })
+    .from(promotions)
+    .innerJoin(brands, eq(brands.id, promotions.brandId))
+    .where(where);
+  if (brandPage.length === 0) return { items: [], total: Number(totalRow?.n ?? 0) };
+
+  const rows = await db
+    .select({ promotion: promotions, brand: brands, changedFields: changedFieldsSql })
+    .from(promotions)
+    .innerJoin(brands, eq(brands.id, promotions.brandId))
+    .where(and(where, inArray(promotions.brandId, brandPage.map((b) => b.brand.id))))
+    .orderBy(q.sort === "newest" ? desc(promotions.firstSeenAt) : q.sort === "alpha" ? asc(promotions.title) : sql`${promotions.endsAt} asc nulls last`, asc(promotions.title), asc(promotions.id));
+  const byBrand = new Map<string, Promotion[]>();
+  for (const r of rows) {
+    const list = byBrand.get(r.brand.id) ?? [];
+    list.push(promotionToApi(r.promotion, r.brand, { changedFields: r.changedFields }));
+    byBrand.set(r.brand.id, list);
+  }
+  return {
+    items: brandPage.map((b) => ({ brand: { ...brandToApi(b.brand), promotionCount: b.promotionCount }, promotions: byBrand.get(b.brand.id) ?? [] })),
+    total: Number(totalRow?.n ?? 0),
+  };
 }
 
 export async function getPromotionDetail(db: Database, id: string): Promise<PromotionDetail | null> {
   const [row] = await db
-    .select({ promotion: promotions, brand: brands })
+    .select({ promotion: promotions, brand: brands, changedFields: changedFieldsSql })
     .from(promotions)
     .innerJoin(brands, eq(brands.id, promotions.brandId))
     .where(eq(promotions.id, id))
     .limit(1);
   if (!row) return null;
-  return { ...promotionToApi(row.promotion, row.brand), brand: brandToApi(row.brand) };
+  return { ...promotionToApi(row.promotion, row.brand, { changedFields: row.changedFields }), brand: brandToApi(row.brand) };
 }
 
 export async function listPromotionsForBrand(db: Database, brandId: string): Promise<Promotion[]> {

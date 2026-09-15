@@ -56,6 +56,8 @@ for (const [name, w] of [
     log.error({ queue: name, jobId: job?.id, attempt: job?.attemptsMade, err: err.message }, "job failed");
     // Terminal failure after all attempts (or a stall past the limit): make the DB row say so.
     if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+      const row = name === "scrape" ? await runsRepo.getScrapeRun(db, job.id!) : await runsRepo.getVerificationRun(db, job.id!);
+      if (row?.status === "cancelled") return;
       const patch = { status: "failed" as const, error: err.message, finishedAt: new Date() };
       if (name === "scrape") await runsRepo.updateScrapeRun(db, job.id!, patch).catch(() => {});
       else await runsRepo.updateVerificationRun(db, job.id!, patch).catch(() => {});

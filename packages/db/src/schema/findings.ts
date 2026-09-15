@@ -1,5 +1,5 @@
 import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import type { FieldChange, FindingEvidence } from "@field-agent/shared";
+import type { FieldChange, Finding, FindingEvidence } from "@field-agent/shared";
 import { verificationOutcomeEnum } from "./enums.js";
 import { promotions } from "./promotions.js";
 import { verificationRuns } from "./runs.js";
@@ -22,6 +22,8 @@ export const verificationFindings = pgTable(
     fieldChanges: jsonb("field_changes").$type<FieldChange[]>().notNull().default([]),
     reason: text("reason"),
     evidence: jsonb("evidence").$type<FindingEvidence>().notNull(),
+    promotionSnapshot: jsonb("promotion_snapshot").$type<Finding["promotion"]>(),
+    baselineUpdatedAt: timestamp("baseline_updated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
