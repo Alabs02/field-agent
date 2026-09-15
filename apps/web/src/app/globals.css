@@ -3,12 +3,27 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
-  Brand tokens. Plum and pink are Engagement Agents' anchors; the neutrals are
-  warm so the plum reads as ink rather than as a template purple.
+  Brand tokens, taken from Engagement Agents' own stylesheet: sky #42c3f1 is the
+  primary, pink #e23d6f the call to action, plum #341b41 the ink. Neutrals are warm
+  so the plum reads as ink rather than as a template purple. Type is Montserrat for
+  display and Lato for text, as on engagementagents.com.
 */
 @theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-lato), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-montserrat), var(--font-lato), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --color-sky-50: #f0fbfe;
+  --color-sky-100: #dcf5fc;
+  --color-sky-200: #b9ebf9;
+  --color-sky-300: #86def5;
+  --color-sky-400: #5dd0f3;
+  --color-sky-500: #42c3f1;
+  --color-sky-600: #1eaadb;
+  --color-sky-700: #1689b3;
+  --color-sky-800: #166f90;
+  --color-sky-900: #175c76;
+  --color-sky-950: #0c3a4c;
 
   --color-plum-50: #f6f2f8;
   --color-plum-100: #ebe2ef;
@@ -55,7 +70,13 @@
   --radius-xl: 1.25rem;
 }
 
-/* Semantic surfaces, swapped by theme. */
+/*
+  Semantic surfaces, swapped by theme.
+  brand    = sky: identity, active states, focus, links, highlights.
+  brand-fg = deep plum on sky: white on #42c3f1 is 2.1:1, plum is 7.5:1.
+  ink      = plum: primary actions (Engagement Agents' "Let's Talk").
+  accent   = pink: the call to action ("Find Out How").
+*/
 :root {
   --bg: var(--color-sand-50);
   --bg-elev: #ffffff;
@@ -65,11 +86,14 @@
   --fg-subtle: var(--color-sand-500);
   --line: var(--color-sand-200);
   --line-strong: var(--color-sand-300);
-  --brand: var(--color-plum-800);
-  --brand-fg: #ffffff;
+  --brand: var(--color-sky-500);
+  --brand-fg: var(--color-plum-950);
+  --brand-text: var(--color-sky-700);
+  --ink: var(--color-plum-900);
+  --ink-fg: #ffffff;
   --accent: var(--color-pink-500);
   --accent-fg: #ffffff;
-  --ring: var(--color-pink-400);
+  --ring: var(--color-sky-500);
   color-scheme: light;
 }
 
@@ -82,11 +106,14 @@
   --fg-subtle: #8d7f97;
   --line: #2d2136;
   --line-strong: #3d2e48;
-  --brand: var(--color-plum-200);
+  --brand: var(--color-sky-400);
   --brand-fg: var(--color-plum-950);
+  --brand-text: var(--color-sky-300);
+  --ink: var(--color-plum-100);
+  --ink-fg: var(--color-plum-950);
   --accent: var(--color-pink-400);
   --accent-fg: #1a0710;
-  --ring: var(--color-pink-400);
+  --ring: var(--color-sky-400);
   color-scheme: dark;
 }
 
@@ -101,6 +128,9 @@
   --color-line-strong: var(--line-strong);
   --color-brand: var(--brand);
   --color-brand-fg: var(--brand-fg);
+  --color-brand-text: var(--brand-text);
+  --color-ink: var(--ink);
+  --color-ink-fg: var(--ink-fg);
   --color-accent: var(--accent);
   --color-accent-fg: var(--accent-fg);
   --color-ring: var(--ring);
@@ -118,20 +148,43 @@
     background: var(--bg);
     color: var(--fg);
     font-family: var(--font-sans);
-    font-feature-settings: "cv11", "ss01", "ss03";
+  }
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
   }
   ::selection {
-    background: color-mix(in oklab, var(--accent) 30%, transparent);
+    background: color-mix(in oklab, var(--brand) 35%, transparent);
   }
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
+  /*
+    Tailwind v4 dropped the pointer cursor on buttons that v3 set. Anything a
+    person can click reads as clickable; a disabled control says so.
+  */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  select:not(:disabled),
+  label:has(> input[type="checkbox"]:not(:disabled)),
+  label:has(> input[type="radio"]:not(:disabled)) {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
 @layer utilities {
   .tabular {
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: tabular-nums lining-nums;
   }
   .text-balance {
     text-wrap: balance;
@@ -170,11 +223,114 @@
 .marquee:hover .marquee-track {
   animation-play-state: paused;
 }
+
+/* Mobile navigation drawer. */
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+  Sign-in ambience: three soft brand blobs that drift slowly behind the form.
+  Colours come from the tokens so dark mode dims them with everything else.
+*/
+@keyframes drift-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(6%, -8%, 0) scale(1.08);
+  }
+}
+@keyframes drift-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-7%, 6%, 0) scale(1.05);
+  }
+}
+@keyframes drift-c {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, 9%, 0) scale(0.95);
+  }
+}
+.ambient {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ambient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(color-mix(in oklab, var(--fg) 9%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(70% 70% at 50% 40%, #000 30%, transparent 100%);
+}
+.ambient > i {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.55;
+  will-change: transform;
+}
+.ambient > i:nth-child(1) {
+  width: 55%;
+  padding-bottom: 55%;
+  left: -12%;
+  top: -18%;
+  background: var(--color-sky-300);
+  animation: drift-a 34s ease-in-out infinite;
+}
+.ambient > i:nth-child(2) {
+  width: 50%;
+  padding-bottom: 50%;
+  right: -14%;
+  top: 10%;
+  background: var(--color-pink-200);
+  animation: drift-b 40s ease-in-out infinite;
+}
+.ambient > i:nth-child(3) {
+  width: 46%;
+  padding-bottom: 46%;
+  left: 18%;
+  bottom: -22%;
+  background: var(--color-plum-200);
+  animation: drift-c 46s ease-in-out infinite;
+}
+.dark .ambient > i {
+  opacity: 0.22;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .marquee-track {
     animation: none;
     flex-wrap: wrap;
     width: 100%;
     justify-content: center;
+  }
+  .skeleton,
+  .ambient > i {
+    animation: none;
   }
 }

@@ -43,7 +43,7 @@ export function RunsChart({ runs }: { runs: ScrapeRun[] }) {
           />
           <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: "var(--fg-muted)" }} />
           <Bar dataKey="New" stackId="a" fill="#1f9d5f" isAnimationActive={false} />
-          <Bar dataKey="Updated" stackId="a" fill="#6b4a7e" isAnimationActive={false} />
+          <Bar dataKey="Updated" stackId="a" fill="#42c3f1" isAnimationActive={false} />
           <Bar dataKey="Unchanged" stackId="a" fill="#b8ab9e" isAnimationActive={false} />
           <Bar dataKey="Failed" stackId="a" fill="#d33c3c" radius={[3, 3, 0, 0]} isAnimationActive={false} />
         </BarChart>

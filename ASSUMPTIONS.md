@@ -49,6 +49,7 @@ Interpretations of the brief where it was ambiguous, plus things discovered whil
 | [30](#30-audit-events-keep-the-full-row) | Operations | Data semantics | Audit events keep the full before/after row |
 | [31](#31-history-starts-at-migration-0001) | Operations | Data semantics | No history is reconstructed before migration 0001 |
 | [32](#32-the-overviews-needs-attention-counts-listed-records-only) | Operations | Data semantics | Overview coverage and attention tiles scope to listed records |
+| [33](#33-white-text-on-the-brand-sky-fails-contrast-so-sky-buttons-carry-ink) | Brand | Auth and deploy | Sky buttons carry plum text; primary actions use the plum button |
 
 ## Portal facts
 
@@ -263,6 +264,12 @@ Reconstructed history would have to invent actors and timestamps. The overview s
 **Inventory tiles (listed, ending soon, needs attention, verification coverage) all scope to `removed_at is null`, so `listing checks + detail checks + unchecked = listed` holds on every screen.**
 
 A removed promotion flagged "gone from source" is exactly what removal means; counting it as needing attention would make the coverage numbers disagree with the inventory number next to them. Removed records stay reachable through the promotions page's presence filter and the audit trail.
+
+#### 33. White text on the brand sky fails contrast, so sky buttons carry ink
+
+**Engagement Agents' primary `#42c3f1` gives 2.1:1 against white text, below WCAG AA for any text size. The app keeps the sky as the identity colour but puts deep plum (`#150a1b`, 7.5:1) on sky buttons, and uses the plum "Let's Talk" button for primary actions.**
+
+The colours, the Montserrat and Lato pairing and the 6 px radius come from engagementagents.com's own stylesheet. The `ea` mark is theirs and is used only to identify the company this take-home was prepared for.
 
 ---
 

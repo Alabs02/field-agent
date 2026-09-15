@@ -11,8 +11,8 @@ const tooltip = { background: "var(--bg-elev)", border: "1px solid var(--line)",
 
 export function OverviewCharts({ data }: { data: z.infer<typeof OverviewSchema> }) {
   const charts: Chart[] = [
-    { title: "Expiration timeline", subtitle: "Listed promotions ending in the next 30 days", rows: data.expirations, xKey: "day", series: [{ key: "count", label: "Promotions", color: "#cb5b8c" }] },
-    { title: "Campaigns by brand", subtitle: "Top 12 brands by current listed inventory", rows: data.brands, xKey: "name", series: [{ key: "count", label: "Promotions", color: "#6b4a7e" }] },
+    { title: "Expiration timeline", subtitle: "Listed promotions ending in the next 30 days", rows: data.expirations, xKey: "day", series: [{ key: "count", label: "Promotions", color: "#e23d6f" }] },
+    { title: "Campaigns by brand", subtitle: "Top 12 brands by current listed inventory", rows: data.brands, xKey: "name", series: [{ key: "count", label: "Promotions", color: "#42c3f1" }] },
     { title: "Run outcomes", subtitle: "Runs queued during the selected period", rows: data.outcomes, xKey: "day", series: [{ key: "completed", label: "Completed", color: "#1f9d5f" }, { key: "partial", label: "Partial", color: "#c18b25" }, { key: "failed", label: "Needs attention", color: "#d33c3c" }] },
   ];
   return (

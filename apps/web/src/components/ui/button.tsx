@@ -8,11 +8,15 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-brand text-brand-fg shadow-sm hover:bg-plum-700 dark:hover:bg-plum-300",
+        /** Primary action: Engagement Agents' dark plum ("Let's Talk"). */
+        default: "bg-ink text-ink-fg shadow-sm hover:bg-plum-700 dark:hover:bg-plum-200",
+        /** Identity action: sky with deep ink text (white on sky fails contrast). */
+        brand: "bg-brand text-brand-fg shadow-sm hover:bg-sky-400 dark:hover:bg-sky-300",
+        /** Call to action: pink ("Find Out How"). */
         accent: "bg-accent text-accent-fg shadow-sm hover:bg-pink-600 dark:hover:bg-pink-300",
-        outline: "border border-line-strong bg-bg-elev hover:bg-bg-muted",
+        outline: "border border-line-strong bg-bg-elev hover:border-sky-300 hover:bg-sky-50 dark:hover:border-sky-800 dark:hover:bg-sky-950/40",
         ghost: "hover:bg-bg-muted",
-        link: "text-accent underline-offset-4 hover:underline",
+        link: "text-brand-text underline-offset-4 hover:underline",
       },
       size: {
         sm: "h-8 px-3 text-xs",

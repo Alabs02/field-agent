@@ -1,5 +1,10 @@
 # Brand assets
 
-Generated files; do not edit by hand. Source: `apps/web/public/ea/logo.png` (the Engagement Agents wordmark used on the lander). Regenerate with `python scripts/gen-brand-assets.py`; `ea-logo-dark.png` is a straight RGB inversion with the alpha channel kept, the same transform the site applies with `dark:invert`.
+Generated files; do not edit by hand.
 
-Engagement Agents and the Engagement Agents logo belong to Engagement Agents and appear here only to identify the company this take-home was prepared for.
+- `ea-logo-light.png` / `ea-logo-dark.png`: from `apps/web/public/ea/logo.png` (the Engagement Agents wordmark used on the lander). Regenerate with `python scripts/gen-brand-assets.py`; the dark file is a straight RGB inversion with the alpha channel kept, the same transform the site applies with `dark:invert`.
+- `field-agent-icon-512.png`: the app icon (the `ea` mark in deep plum on the brand sky), rendered from `apps/web/src/app/icon.svg` by `node scripts/gen-icons.mjs`, which also writes the 32 px `icon.png` and the 180 px `apple-icon.png` the App Router serves.
+
+The `ea` mark itself lives in code as `apps/web/src/components/brand/ea-mark.tsx` (inline SVG, `currentColor`) so it takes the theme's brand colour. The colours the app uses are Engagement Agents' own: sky `#42c3f1`, pink `#e23d6f`, plum `#341b41`; the type pairing is theirs too, Montserrat for display and Lato for text.
+
+Engagement Agents, the Engagement Agents wordmark and the `ea` mark belong to Engagement Agents and appear here only to identify the company this take-home was prepared for.

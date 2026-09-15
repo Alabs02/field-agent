@@ -1,58 +1,50 @@
 import Link from "next/link";
 import type * as React from "react";
 import type { Role } from "@field-agent/shared";
-import { SidebarNav } from "./sidebar-nav";
-import { ThemeToggle } from "./theme-toggle";
-import { UserMenu } from "./user-menu";
+import { BrandLockup } from "@/components/brand/lockup";
 import { AccessProvider } from "../operations/access";
 import { ActiveRunIndicator } from "../operations/active-run";
 import { Notifications } from "../operations/notifications";
+import { DesktopSidebar, SidebarControls } from "./sidebar-chrome";
+import type { SidebarState } from "./sidebar-cookie";
+import { SidebarProvider } from "./sidebar-state";
+import { ThemeToggle } from "./theme-toggle";
+import { UserMenu } from "./user-menu";
 
-export function AppShell({ children, authRequired, user }: { children: React.ReactNode; authRequired: boolean; user: { name: string; role: Role } | null }) {
+export function AppShell({ children, authRequired, user, sidebar }: { children: React.ReactNode; authRequired: boolean; user: { name: string; role: Role } | null; sidebar: SidebarState }) {
+  const role = user?.role ?? null;
   return (
-    <AccessProvider role={user?.role ?? null} authRequired={authRequired}>
-      <div className="flex min-h-dvh">
-        <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-bg-elev md:flex">
-          <div className="flex h-14 items-center gap-2 border-b border-line px-5">
-            <Link href="/app" className="flex items-center gap-2">
-              <span className="grid size-7 place-items-center rounded-md bg-brand text-brand-fg text-xs font-bold">fa</span>
-              <span className="text-sm font-semibold tracking-tight">field-agent</span>
-            </Link>
+    <AccessProvider role={role} authRequired={authRequired}>
+      <SidebarProvider initial={sidebar}>
+        <div className="flex min-h-dvh">
+          <DesktopSidebar role={role} />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <header className="sticky top-0 z-30 border-b border-line bg-bg-elev/85 backdrop-blur supports-[backdrop-filter]:bg-bg-elev/75">
+              <div className="flex h-14 items-center justify-between gap-3 px-3 md:px-5">
+                <div className="flex min-w-0 items-center gap-2">
+                  <SidebarControls role={role} />
+                  <Link href="/app" className="rounded-md md:hidden" aria-label="Field Agent overview">
+                    <BrandLockup />
+                  </Link>
+                  {authRequired ? null : (
+                    <span className="hidden items-center gap-1.5 rounded-full border border-line px-2 py-0.5 text-xs text-fg-muted md:inline-flex">
+                      <span className="size-1.5 rounded-full bg-emerald-500" /> Local mode · auth off
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <ActiveRunIndicator />
+                  <Notifications compact />
+                  {authRequired ? <UserMenu user={user} /> : null}
+                  <ThemeToggle />
+                </div>
+              </div>
+              <div aria-hidden className="h-px w-full bg-gradient-to-r from-sky-400 via-pink-400 to-plum-400 opacity-70" />
+            </header>
+            <main className="flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
           </div>
-          <SidebarNav role={user?.role ?? null} />
-          <div className="mt-auto border-t border-line p-4 text-xs text-fg-muted">
-            <p className="font-medium text-fg">The Promenade Shops at Briargate</p>
-            <p>Colorado Springs, CO · America/Denver</p>
-          </div>
-        </aside>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-14 items-center justify-between gap-3 border-b border-line bg-bg-elev/80 px-4 backdrop-blur md:px-6">
-            <div className="flex items-center gap-2 md:hidden">
-              <Link href="/app" className="text-sm font-semibold">
-                field-agent
-              </Link>
-            </div>
-            <div className="hidden items-center gap-3 text-xs text-fg-muted md:flex">
-              {authRequired ? null : (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5">
-                  <span className="size-1.5 rounded-full bg-emerald-500" /> Local mode · auth off
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <ActiveRunIndicator />
-              <Notifications compact />
-              {authRequired ? <UserMenu user={user} /> : null}
-              <ThemeToggle />
-            </div>
-          </header>
-          <details className="border-b border-line md:hidden">
-            <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Navigation</summary>
-            <SidebarNav role={user?.role ?? null} />
-          </details>
-          <main className="flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
         </div>
-      </div>
+      </SidebarProvider>
     </AccessProvider>
   );
 }

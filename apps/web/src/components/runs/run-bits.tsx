@@ -43,7 +43,7 @@ export function PhaseTimeline({ phase, status }: { phase: ScrapePhase; status: R
               className={cn(
                 "rounded-full px-2 py-0.5",
                 done && "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
-                current && "bg-plum-100 text-plum-900 ring-1 ring-plum-300 dark:bg-plum-900/60 dark:text-plum-100",
+                current && "bg-sky-100 text-sky-900 ring-1 ring-sky-300 dark:bg-sky-900/40 dark:text-sky-100 dark:ring-sky-800",
                 !done && !current && "bg-bg-muted text-fg-subtle",
               )}
             >
@@ -60,7 +60,7 @@ export function PhaseTimeline({ phase, status }: { phase: ScrapePhase; status: R
 export function CountsBar({ counts }: { counts: ScrapeCounts }) {
   const segs = [
     { key: "persisted", label: "New", v: counts.persisted, cls: "bg-emerald-500" },
-    { key: "updated", label: "Updated", v: counts.updated, cls: "bg-plum-500" },
+    { key: "updated", label: "Updated", v: counts.updated, cls: "bg-sky-500" },
     { key: "skipped", label: "Unchanged", v: counts.skipped, cls: "bg-sand-400" },
     { key: "failed", label: "Failed", v: counts.failed, cls: "bg-red-500" },
   ];

@@ -219,7 +219,7 @@ Roles exist only when `AUTH_REQUIRED=true` (the hosted demo, or `AUTH_REQUIRED=t
 
 ## How it is built
 
-A pnpm and Turborepo monorepo where the shared Zod schemas are the single contract from scraper output to UI props.
+A pnpm and Turborepo monorepo where the shared Zod schemas are the single contract from scraper output to UI props. The UI wears Engagement Agents' brand (sky, pink and plum from their stylesheet, Montserrat and Lato, the `ea` mark) with the contrast bar kept: see [docs/brand](./docs/brand/README.md).
 
 ### What you get
 
