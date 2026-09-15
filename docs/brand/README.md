@@ -1,5 +1,7 @@
 # Brand assets
 
+For the redesigned company homepage, original asset sources and behavior, see [Marketing homepage](marketing-homepage.md).
+
 Generated files; do not edit by hand.
 
 - `ea-logo-light.png` / `ea-logo-dark.png`: from `apps/web/public/ea/logo.png` (the Engagement Agents wordmark used on the lander). Regenerate with `python scripts/gen-brand-assets.py`; the dark file is a straight RGB inversion with the alpha channel kept, the same transform the site applies with `dark:invert`.

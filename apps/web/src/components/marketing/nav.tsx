@@ -1,29 +1,90 @@
+"use client";
+
 import Link from "next/link";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { Menu, X, ArrowUpRight } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { DEMO_URL, NAV_LINKS } from "./content";
 
 export function MarketingNav() {
+  const menu = useRef<HTMLDetailsElement>(null);
+  function closeMenu() {
+    if (menu.current) menu.current.open = false;
+  }
+  useEffect(() => {
+    const dismissOutside = (event: Event) => {
+      if (
+        menu.current?.open &&
+        event.target instanceof Node &&
+        !menu.current.contains(event.target)
+      ) {
+        closeMenu();
+      }
+    };
+    document.addEventListener("pointerdown", dismissOutside);
+    document.addEventListener("focusin", dismissOutside);
+    return () => {
+      document.removeEventListener("pointerdown", dismissOutside);
+      document.removeEventListener("focusin", dismissOutside);
+    };
+  }, []);
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-bg/80 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <a href="#top" className="flex items-center gap-2">
-          <img src="/ea/logo.png" alt="Engagement Agents" className="h-6 w-auto dark:invert" />
+    <header className="ea-header">
+      <a href="#main" className="ea-skip">
+        Skip to content
+      </a>
+      <div className="ea-wrap ea-header-inner">
+        <a href="#top" aria-label="Engagement Agents home" className="ea-wordmark">
+          <img src="/ea/logo.png" alt="Engagement Agents" width={330} height={33} />
         </a>
-        <nav className="hidden items-center gap-7 text-sm text-fg-muted md:flex" aria-label="Sections">
-          <a href="#proof" className="hover:text-fg">Results</a>
-          <a href="#how" className="hover:text-fg">How it works</a>
-          <a href="#why" className="hover:text-fg">Why</a>
-          <a href="#verify" className="hover:text-fg">Verification</a>
-          <a href="#stories" className="hover:text-fg">Stories</a>
+        <nav className="ea-desktop-nav" aria-label="Main navigation">
+          {NAV_LINKS.map((link) => (
+            <a key={link.href} href={link.href}>
+              {link.label}
+            </a>
+          ))}
         </nav>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <Link href="/app" className="hidden h-9 items-center rounded-md border border-line-strong px-3 text-sm font-medium hover:bg-bg-muted sm:inline-flex">
-            Platform
+        <div className="ea-nav-actions">
+          <Link href="/login" className="ea-login">
+            Login
           </Link>
-          <a href="https://www.engagementagents.com/book-a-demo" className="inline-flex h-9 items-center rounded-md bg-accent px-3 text-sm font-semibold text-accent-fg hover:bg-pink-600">
-            Book a demo
+          <a href={DEMO_URL} className="ea-button ea-button-primary ea-nav-demo">
+            Book a Demo <ArrowUpRight size={15} aria-hidden="true" />
           </a>
         </div>
+        <details
+          className="ea-mobile-menu"
+          ref={menu}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              closeMenu();
+              menu.current?.querySelector("summary")?.focus();
+            }
+          }}
+        >
+          <summary aria-label="Navigation menu">
+            <Menu className="ea-when-closed" size={22} />
+            <X className="ea-when-open" size={22} />
+          </summary>
+          <nav
+            aria-label="Mobile navigation"
+            onClick={(event) => {
+              if ((event.target as HTMLElement).closest("a")) closeMenu();
+            }}
+          >
+            {NAV_LINKS.map((link) => (
+              <a key={link.href} href={link.href}>
+                {link.label}
+                <ArrowUpRight size={16} aria-hidden="true" />
+              </a>
+            ))}
+            <a href="#stories">
+              Testimonials <ArrowUpRight size={16} aria-hidden="true" />
+            </a>
+            <a href={DEMO_URL} className="ea-mobile-demo">
+              Book a Demo <ArrowUpRight size={16} aria-hidden="true" />
+            </a>
+          </nav>
+        </details>
       </div>
     </header>
   );

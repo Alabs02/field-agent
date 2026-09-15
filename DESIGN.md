@@ -138,7 +138,7 @@ Everything above was built first and tagged `v1-brief`. The following were added
 
 - **Auth and roles.** Better Auth (email + password) on the API with five seeded personas matching the brief's user table: account manager, data engineer, operations, reviewer, super admin. The shared `PERMISSIONS` map is the single RBAC source for the API guard and the UI. `AUTH_REQUIRED=false` keeps the local API open exactly as the brief asks; the deployed demo turns it on.
 - **Run-health dashboard.** Runs page with per-run stacked outcomes, live progress and phase timeline, request counts, and the error table, so "did last night's run actually do what it claims" has a one-screen answer.
-- **Marketing lander at `/`.** A proposal for Engagement Agents' own front door, using their real customers, quotes and figures, with the product behind it. It exists because the brief is, at heart, their "Ensure Compliance" pillar made concrete: the verification band on the lander reads the last real verification run from this deployment.
+- **Marketing lander at `/`.** An editorial proposal for Engagement Agents' company homepage, with original illustrations, a stationary customer wall, published results and testimonials. It renders independently of the API; Login opens Field Agent at `/login`. See [the homepage design and asset sources](docs/brand/marketing-homepage.md).
 - **Docker packaging, CI, Railway.** One multi-target Dockerfile, a GitHub Actions workflow (typecheck, lint, tests, build, compose smoke test that never touches the portal), and per-service Railway config.
 - **Drift demo.** `cli.js drift` edits a few persisted rows so a verification run has real discrepancies to show.
 

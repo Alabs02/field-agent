@@ -50,7 +50,7 @@ Captured from the hosted demo. Expected files: `docs/screenshots/overview.png`, 
     <td><img src="docs/screenshots/verification.png" alt="Verification report" width="100%"><br><sub>Verification report: processing result, data verdict, coverage, before/after.</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/screenshots/lander.png" alt="Lander at /" width="100%"><br><sub>Lander at <code>/</code>: the verification band reads the last real run.</sub></td>
+    <td colspan="2"><img src="docs/screenshots/lander.png" alt="Lander at /" width="100%"><br><sub>Company homepage at <code>/</code>: original illustrations, customer proof, and Login to Field Agent.</sub></td>
   </tr>
 </table>
 -->

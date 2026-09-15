@@ -1,37 +1,51 @@
 "use client";
 
-import { motion, type Variants } from "motion/react";
-import type * as React from "react";
-import { dur, ease, fadeUp, group, inView, stagger } from "@/lib/motion";
+import { useAnimate, useReducedMotion } from "motion/react";
+import { useEffect, type ReactNode } from "react";
+import { dur, ease, stagger } from "@/lib/motion";
 
-/** Section reveal: once, on entering the viewport. The support layer. */
-export function Reveal({ children, className, delay = 0, as = "div" }: { children: React.ReactNode; className?: string; delay?: number; as?: "div" | "section" | "li" | "p" | "h2" }) {
-  const Comp = motion[as];
-  const variants: Variants = delay
-    ? { hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0, transition: { duration: dur.slow, ease: ease.out, delay } } }
-    : fadeUp;
+/** Progressive enhancement: the server-rendered content is never hidden. */
+export function Reveal({
+  children,
+  className,
+  hero = false,
+  sequence = false,
+}: {
+  children: ReactNode;
+  className?: string;
+  hero?: boolean;
+  sequence?: boolean;
+}) {
+  const [scope, animate] = useAnimate<HTMLDivElement>();
+  const reduce = useReducedMotion();
+  useEffect(() => {
+    if (reduce || !scope.current || !window.IntersectionObserver) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        observer.disconnect();
+        if (sequence) {
+          animate(
+            ".ea-process-marker",
+            { opacity: [0.35, 1] },
+            { duration: dur.slow, ease: ease.out, delay: (i) => i * stagger.rows },
+          );
+        } else {
+          animate(
+            scope.current,
+            { opacity: [0.75, 1], y: [hero ? 16 : 8, 0] },
+            { duration: hero ? dur.hero : dur.slow, ease: ease.out },
+          );
+        }
+      },
+      { threshold: 0.15 },
+    );
+    observer.observe(scope.current);
+    return () => observer.disconnect();
+  }, [animate, hero, reduce, scope, sequence]);
   return (
-    <Comp className={className} variants={variants} initial="hidden" whileInView="visible" viewport={inView}>
+    <div ref={scope} className={className}>
       {children}
-    </Comp>
-  );
-}
-
-/** Orchestrates children that carry `fadeUp` variants themselves. */
-export function RevealGroup({ children, className, gap = stagger.cards, as = "div" }: { children: React.ReactNode; className?: string; gap?: number; as?: "div" | "ul" | "ol" }) {
-  const Comp = motion[as];
-  return (
-    <Comp className={className} variants={group(gap)} initial="hidden" whileInView="visible" viewport={inView}>
-      {children}
-    </Comp>
-  );
-}
-
-export function RevealItem({ children, className, as = "div" }: { children: React.ReactNode; className?: string; as?: "div" | "li" | "article" }) {
-  const Comp = motion[as];
-  return (
-    <Comp className={className} variants={fadeUp}>
-      {children}
-    </Comp>
+    </div>
   );
 }
