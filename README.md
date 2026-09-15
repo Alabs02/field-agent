@@ -37,7 +37,7 @@ An engagement agent that walks the mall for you. It scrapes the promotions a sho
 
 ## Screenshots
 
-Captured from the hosted demo, signed in as the super admin, light theme. Regenerate from raw captures with `python scripts/gen-screenshots.py`.
+From the hosted demo.
 
 <table>
   <tr>
@@ -181,7 +181,7 @@ curl -s -X POST http://localhost:4000/verify
 
 - **/**: a marketing lander proposed for Engagement Agents' own site (beyond the brief). The product lives under **/app**.
 
-- **/app**: the operations overview. What is listed, what changed in the reporting period, and whether the pipeline needs attention (see [Operations dashboard](#operations-dashboard)). Legacy promotion-filter links to `/app?search=…` redirect to the promotions page.
+- **/app**: the operations overview. What is listed, what changed in the reporting period, and whether the pipeline needs attention (see [Operations dashboard](#operations-dashboard)).
 - **/app/promotions**: cards, a dense table (dates, days left, first seen, last seen on the source, detail-fetch time, verification coverage, changed fields), and a **By brand** view whose pages count brands and show each brand's complete filtered group. Search, brand, collection, date range, verification outcome, source presence, freshness, first-seen range, "ending within 7 days" and "needs attention" filters, all in the URL.
 - **/app/promotions/:id**: full description, dates and their provenance, brand panel, verification history, and the stored record's change history.
 - **/app/brands** and **/app/brands/:slug**: search, category, store-data and sort filters with pagination; the detail page carries the brand's data-change history.
@@ -193,7 +193,7 @@ Empty states are honest: this portal lists no per-brand social accounts, so the 
 
 ### Operations dashboard
 
-Built after the core brief; the walkthrough below follows one connected story.
+Built after the core brief.
 
 **Overview (`/app`).** Inventory numbers describe stored records now: listed promotions (the portal's current inventory), ending within seven days (known end dates only; records without one are counted separately), records needing attention (changed, missing or unverifiable at their last check), verification coverage (detail checks and listing-only checks are different claims) and brand enrichment (a fetched store page that publishes no website is "not listed", not "missing"). Activity numbers cover the reporting period (24 hours, 7 days by default, 30 days, or custom dates): newly discovered promotions, runs, source requests, runs needing attention and stored edits. Every tile links to the filtered list behind it, and every total is a database aggregate over the same filter, never a count of the loaded page. Times are America/Denver.
 
@@ -203,7 +203,7 @@ Built after the core brief; the walkthrough below follows one connected story.
 
 **Schedules.** One shared schedule for this portal, disabled by default with a daily interval. Presets of 1, 6, 12 and 24 hours, or any whole number of hours up to 168; verification coverage quick or full. Enabling it sets the first due time one interval from now; *Run now* is explicit. A cycle verifies the stored baseline first, then runs the incremental refresh, so evidence of drift is recorded before stored values change. Discrepancies let the refresh continue; a failed or cancelled verification stops it. An empty database bootstraps the other way round (scrape, then verify). A due cycle that finds work already active is skipped, recorded as such, and the schedule moves to the next interval; nothing accumulates. The page shows the next due time, the last actual start, the last outcome and who changed the configuration.
 
-**Audit trail.** Append-only, enforced by a database trigger, and written in the same transaction as the change it records: run launches, status transitions, cancellation requests and retries; promotion creation, meaningful edits, removal, reappearance and identity relinking; brand metadata changes; verification observations; schedule changes, started, skipped and finished cycles; exports; role changes. Each event carries the actor, the entity's label at that time, the related run, a severity and the before/after values, so history keeps the original title after a later edit. "A discrepancy observed at the source" (`verification.observed`, `verification.drift_detected`) and "a stored record updated by scraping" (`promotion.updated`) are different actions. History starts with migration `0001`; older runs predate it and no events are reconstructed.
+**Audit trail.** Append-only, enforced by a database trigger, and written in the same transaction as the change it records: run launches, status transitions, cancellation requests and retries; promotion creation, meaningful edits, removal, reappearance and identity relinking; brand metadata changes; verification observations; schedule changes, started, skipped and finished cycles; exports; role changes. Each event carries the actor, the entity's label at that time, the related run, a severity and the before/after values, so history keeps the original title after a later edit. "A discrepancy observed at the source" (`verification.observed`, `verification.drift_detected`) and "a stored record updated by scraping" (`promotion.updated`) are different actions. History starts when the audit trail was added; runs before that have no reconstructed events.
 
 **Notifications.** The header bell and `/app/notifications` show one summary per meaningful transition: a run completing, completing with errors, failing, stalling or being cancelled; drift detected by a verification; a source block; a schedule change or a finished or skipped cycle. Never one message per changed record. Read state is stored per user when signed in and in the browser in open local mode.
 
@@ -299,7 +299,7 @@ railway login                  # once, in your browser
 pnpm railway:deploy            # project, Redis, Postgres, api, worker, web, domains, variables, deploy
 ```
 
-[scripts/railway-deploy.sh](./scripts/railway-deploy.sh) is idempotent and prints the two public URLs and the demo sign-in when it finishes. Set `DATABASE_URL` (a Neon pooled URL) before running it to use Neon instead of Railway's Postgres. Details, variables, and the manual dashboard path are in [railway/README.md](./railway/README.md); the per-service Dockerfiles there are generated from the root `Dockerfile`.
+[scripts/railway-deploy.sh](./scripts/railway-deploy.sh) is idempotent and prints the two public URLs and the demo sign-in when it finishes. Set `DATABASE_URL` (a Neon pooled URL) before running it to use Neon instead of Railway's Postgres. Details, variables, and the manual dashboard path are in [railway/README.md](./railway/README.md).
 
 **Hosted demo** (auth on, Neon Postgres, 60 s between portal requests):
 
@@ -322,7 +322,7 @@ pnpm typecheck
 pnpm lint
 ```
 
-The scraper tests run against HTML captured from the portal (`packages/scraper/test/fixtures`), so a structure change on the site shows up as a failing test with a diffable fixture. The operations work adds unit tests for the launch policy (reviewer bounds), the scheduled-cycle planner (stage order, bootstrap, stop-on-failure, no double launch), export assembly across pages with the size cap and the mid-export conflict, CSV formula neutralisation, `Retry-After` parsing and challenge detection, the fetcher's cooldown and in-flight lease, cancellation, run-tracker recovery, and a copy guard that fails on any em dash in application-authored text. Behaviour that needs a live database (the audit triggers, the append-only guard, the overview identity `listing checks + detail checks + unchecked = listed`) was exercised by hand against the Compose stack; see [ASSUMPTIONS.md](./ASSUMPTIONS.md).
+The scraper tests run against HTML captured from the portal (`packages/scraper/test/fixtures`), so a structure change on the site shows up as a failing test with a diffable fixture. The operations layer is covered by unit tests of its decisions: the launch policy and reviewer bounds, the scheduled-cycle planner, export assembly with the size cap and the mid-export conflict, CSV formula neutralisation, `Retry-After` parsing and challenge detection, the fetcher's cooldown and in-flight lease, cancellation, run-tracker recovery, and a copy guard. The audit triggers, the append-only guard and the overview's coverage identity are tested against a real database when `DATABASE_URL` points at a migrated one, and skipped otherwise.
 
 ## Honesty
 
@@ -333,7 +333,7 @@ What is deliberately missing, what it cost in time, and the license.
 - Verification diffs promotion fields only; brand fields are refreshed by scrape and their changes land in the audit trail, but they are not diffed against the source.
 - Page-number pagination; cursor pagination is the multi-portal answer.
 - The portal itself is not deterministic: one deal intermittently serves a stock placeholder image, and the report says so when it happens (ASSUMPTIONS.md, item 20). A two-observation confirmation rule is the next step.
-- No Playwright UI tests; the compose smoke test in CI covers the boot path. The audit triggers and the scheduler are covered by unit tests of their pure decisions plus manual runs, not by an automated database test.
+- No Playwright UI tests; the compose smoke test in CI covers the boot path, and the database-backed tests do not run in CI.
 - The audit trail stores each changed row's full before/after JSON, which is generous on disk for a one-portal MVP and would want trimming for many portals.
 - Proxy rotation, fingerprint spoofing and CAPTCHA solving are out of scope on purpose: a challenge page stops the run and asks a person.
 - One portal, hard-coded by design.

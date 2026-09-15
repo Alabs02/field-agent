@@ -47,7 +47,7 @@ Interpretations of the brief where it was ambiguous, plus things discovered whil
 | [28](#28-the-listing-is-one-document-pagination-signals-suppress-removals) | Operations | Portal facts | One-document listing; pagination signals suppress removals |
 | [29](#29-browser-mode-sub-requests-share-the-politeness-budget) | Operations | Politeness | Browser-mode sub-requests share the politeness budget |
 | [30](#30-audit-events-keep-the-full-row) | Operations | Data semantics | Audit events keep the full before/after row |
-| [31](#31-history-starts-at-migration-0001) | Operations | Data semantics | No history is reconstructed before migration 0001 |
+| [31](#31-history-starts-when-the-audit-trail-was-added) | Operations | Data semantics | No history is reconstructed from before the audit trail |
 | [32](#32-the-overviews-needs-attention-counts-listed-records-only) | Operations | Data semantics | Overview coverage and attention tiles scope to listed records |
 | [33](#33-white-text-on-the-brand-sky-fails-contrast-so-sky-buttons-carry-ink) | Brand | Auth and deploy | Sky buttons carry plum text; primary actions use the plum button |
 
@@ -253,9 +253,9 @@ A page that pulls a dozen assets therefore takes a dozen spacing intervals at `C
 
 Deciding which columns matter belongs to the reader, and the readers differ (a brand's hours change is noise to one person and the point to another), so the trigger keeps everything and the UI hides the bookkeeping columns. At this portal's size that is a few hundred kilobytes per scrape; for many portals the trigger would keep a column allow-list instead.
 
-#### 31. History starts at migration 0001
+#### 31. History starts when the audit trail was added
 
-**No audit events are synthesised for runs, promotions or brands that existed before the operations migration.**
+**No audit events are synthesised for runs, promotions or brands that existed before the audit trail.**
 
 Reconstructed history would have to invent actors and timestamps. The overview shows when detailed history began, older runs simply have no events, and the notification feed starts empty.
 

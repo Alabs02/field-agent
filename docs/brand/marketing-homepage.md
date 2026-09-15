@@ -34,21 +34,3 @@ Downloaded unchanged on 2026-09-15. All paths below are relative to `apps/web/pu
 | insight-discovery.jpg      | 532 × 298  | [Original](https://www.engagementagents.com/blog-image/Retail-World-Retail-Congress-Dicovery-50-logo.jpg) |
 
 The existing `ea/logo.png`, `ea/sean.jpg`, and `ea/logos/*` assets are reused. Original sources: [company homepage](https://www.engagementagents.com/) and [founder portrait](https://www.engagementagents.com/sean.jpg).
-
-## Acceptance checks
-
-- At 1440×900 and 1280×800: headline, booking CTA and at least one full logo row are visible on arrival.
-- At 768, 390 and 360px: no horizontal overflow; customer logos precede hero artwork; process explanation stacks and a native disclosure opens the full-size diagram in a horizontally scrollable, keyboard-focusable region.
-- Check customer/testimonial disclosures, mobile menu open/close, Escape and keyboard operation, section anchors, Login, external destinations, image loading, and company-specific share metadata.
-- Check the homepage while the API is unavailable and with an inherited dark app theme. Essential content must be present in server HTML; motion must remain optional.
-- Run web typecheck, lint and production build. Conversion impact requires future measurement; this change introduces no analytics, forms or deployment.
-
-## Verification completed — 2026-09-15
-
-- Web lint, typecheck, production build and `git diff --check` passed. Next.js prerenders `/` and `/ea-social` as static routes.
-- Browser checks at all five widths found no page overflow. The first logo row ends at 752px at 1440×900 and 740px at 1280×800. Mobile/tablet customer logos precede the hero artwork.
-- Customer expansion exposes all 46 featured retailers; testimonial expansion exposes six quotes. Mobile menu opens by keyboard, closes with Escape, and closes after choosing a section. Diagram enlargement retains its 970px width within the mobile scroll region.
-- No broken loaded images or invalid local anchors were found. Booking, calculator, story, legal and insight destinations returned HTTP 200 (article pages require GET rather than HEAD).
-- The homepage renders with the local API stopped and stays white with the app's dark preference active. Login reaches the existing Field Agent route; local auth-disabled behavior was confirmed. Authenticated sign-in was not exercised because the local API was unavailable.
-- Primary text/action contrast ratios: pink CTA 5.41:1, blue text 5.66:1, muted text 6.28:1, plum text 15.23:1. These checks exclude text embedded in original artwork.
-- Essential content and native disclosures were verified in server HTML. Reduced-motion behavior was reviewed in code; a browser session with JavaScript disabled or reduced motion forced was not available through the active browser controls. No real-user conversion or performance measurements were collected.
