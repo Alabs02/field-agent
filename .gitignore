@@ -14,3 +14,6 @@ Thumbs.db
 .pnpm-store/
 playwright-report/
 test-results/
+
+# Raw screenshot captures; the README uses the optimised copies in docs/screenshots/
+/screenshots/

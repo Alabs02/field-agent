@@ -37,23 +37,29 @@ An engagement agent that walks the mall for you. It scrapes the promotions a sho
 
 ## Screenshots
 
-Captured from the hosted demo. Expected files: `docs/screenshots/overview.png`, `promotions.png`, `runs.png`, `verification.png`, `lander.png`.
+Captured from the hosted demo, signed in as the super admin, light theme. Regenerate from raw captures with `python scripts/gen-screenshots.py`.
 
-<!-- Un-comment once the PNGs exist in docs/screenshots/ (1440 px wide, light theme).
 <table>
   <tr>
-    <td><img src="docs/screenshots/overview.png" alt="Operations overview" width="100%"><br><sub>Overview at <code>/app</code>: inventory, period activity, coverage, and the pipeline's pulse.</sub></td>
-    <td><img src="docs/screenshots/promotions.png" alt="Promotions" width="100%"><br><sub>Promotions at <code>/app/promotions</code>: filters, table view, and the By-brand grouping.</sub></td>
+    <td width="50%" valign="top"><img src="docs/screenshots/overview.png" alt="Operations overview" width="100%"><br><sub><b>Overview</b> at <code>/app</code>: current inventory, activity in the reporting period, verification coverage, brand enrichment, and the pipeline's pulse. Every tile opens the filtered list behind it.</sub></td>
+    <td width="50%" valign="top"><img src="docs/screenshots/promotions.jpg" alt="Promotions" width="100%"><br><sub><b>Promotions</b> at <code>/app/promotions</code>: search, brand, collection, date and verification filters; cards, table and By-brand views; listed versus within-validity counts; CSV, JSON and print exports.</sub></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/runs.png" alt="Runs dashboard" width="100%"><br><sub>Runs: outcomes, phase timeline, requests, errors, retry and cancel.</sub></td>
-    <td><img src="docs/screenshots/verification.png" alt="Verification report" width="100%"><br><sub>Verification report: processing result, data verdict, coverage, before/after.</sub></td>
+    <td valign="top"><img src="docs/screenshots/runs.png" alt="Runs" width="100%"><br><sub><b>Runs</b>: last scrape and verification at a glance, outcomes per run, request counts as politeness evidence, type, status and date filters. Detail pages add the phase timeline, heartbeat, cooldown reason, Retry and Cancel.</sub></td>
+    <td valign="top"><img src="docs/screenshots/verification.png" alt="Verification report" width="100%"><br><sub><b>Verification report</b>: the processing result separated from the data verdict, coverage stated as detail versus listing-only checks, and before/after values for each drifted field.</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/screenshots/lander.png" alt="Lander at /" width="100%"><br><sub>Company homepage at <code>/</code>: original illustrations, customer proof, and Login to Field Agent.</sub></td>
+    <td valign="top"><img src="docs/screenshots/schedules.png" alt="Schedules" width="100%"><br><sub><b>Schedules</b>: one shared portal schedule, disabled by default; presets or any whole number of hours; verify then refresh; next due, last start, last outcome, and who changed it.</sub></td>
+    <td valign="top"><img src="docs/screenshots/audit-trail.png" alt="Audit trail" width="100%"><br><sub><b>Audit trail</b>: append-only, written by database triggers in the same transaction as the change; filters by entity, action, actor, severity and time, with the before/after row on each event.</sub></td>
+  </tr>
+  <tr>
+    <td valign="top"><img src="docs/screenshots/notifications.png" alt="Notifications" width="100%"><br><sub><b>Notifications</b>: one summary per run transition, detected drift, source block or schedule change, with per-user read state.</sub></td>
+    <td valign="top"><img src="docs/screenshots/admin.png" alt="Admin" width="100%"><br><sub><b>Admin</b> (super admin only): the five demo personas and their roles; role changes land in the audit trail.</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/lander.jpg" alt="Company homepage at /" width="100%"><br><sub><b>Company homepage</b> at <code>/</code> (beyond the brief): a proposal for Engagement Agents' own front door with original illustrations and customer proof; Login leads to Field Agent.</sub></td>
   </tr>
 </table>
--->
 
 ## Run it
 
@@ -334,7 +340,16 @@ What is deliberately missing, what it cost in time, and the license.
 
 ### Hours spent
 
-Core brief (everything up to the `v1-brief` tag): **__ hours**. Extras beyond the brief (auth and roles, runs dashboard, lander, CI, Railway config, drift demo): **__ hours**. The operations dashboard (overview, schedules, audit trail, notifications, exports, retry and cancel, the politeness additions): **__ hours**. The commit history is the trail; nothing was squashed.
+About **18 hours** in total, in four stretches that the commit timestamps show:
+
+| Stretch | What | Hours |
+|---|---|---|
+| Core brief (everything up to the `v1-brief` tag, plus the recon and DESIGN.md written before the first commit) | Scraper, schema, queue, verification, API, UI, Compose | **~4** |
+| Extras | Auth and roles, runs dashboard, the first lander, CI, Railway, drift demo, the hand-off scripts and the worker fix found on deploy | **~6** |
+| Operations dashboard | Overview, schedules, audit trail, notifications, exports, retry and cancel, the politeness additions, their tests and docs | **~5** |
+| Brand and homepage | Engagement Agents' palette and type, the sign-in redesign, the collapsible sidebar, the homepage redesign | **~3** |
+
+The core brief came in under the 10 to 12 hours the brief allowed; everything after the tag is labelled as extra in its commits. The commit history is the trail; nothing was squashed.
 
 ### License
 
