@@ -15,10 +15,13 @@ const PORTAL = "briargate";
 class Rollback extends Error {}
 
 describe.skipIf(!url)("audit triggers", () => {
-  const conn = url ? createDb(url, { max: 1 }) : null;
-  const db = conn!.db;
+  // A skipped describe still runs its body to collect tests, so the connection is opened in beforeAll.
+  let conn: ReturnType<typeof createDb>;
+  let db: ReturnType<typeof createDb>["db"];
 
   beforeAll(async () => {
+    conn = createDb(url!, { max: 1 });
+    db = conn.db;
     await db.insert(portals).values({ id: PORTAL, name: "The Promenade Shops at Briargate", timezone: "America/Denver", baseUrl: "https://www.thepromenadeshopsatbriargate.com" }).onConflictDoNothing();
   });
   afterAll(async () => {
