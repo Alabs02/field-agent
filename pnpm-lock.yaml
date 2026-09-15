@@ -235,9 +235,27 @@ importers:
       bullmq:
         specifier: ^6.3.6
         version: 6.3.6(ioredis@6.0.0)
+      cheerio:
+        specifier: ^1.2.0
+        version: 1.2.0
+      date-fns:
+        specifier: ^4.4.0
+        version: 4.4.0
+      date-fns-tz:
+        specifier: ^3.2.0
+        version: 3.2.0(date-fns@4.4.0)
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(kysely@0.29.5)(postgres@3.4.9)
+      fast-xml-parser:
+        specifier: ^5.11.1
+        version: 5.11.1
+      got-scraping:
+        specifier: ^4.2.1
+        version: 4.2.1
+      he:
+        specifier: ^1.2.0
+        version: 1.2.0
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0
@@ -247,6 +265,15 @@ importers:
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
+      robots-parser:
+        specifier: ^3.0.1
+        version: 3.0.1
+      sanitize-html:
+        specifier: ^2.17.7
+        version: 2.17.7
+      tough-cookie:
+        specifier: ^6.0.2
+        version: 6.0.2
       zod:
         specifier: ^4.6.5
         version: 4.6.5

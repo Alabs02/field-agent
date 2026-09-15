@@ -1,3 +1,6 @@
+import { unlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { Worker } from "bullmq";
 import { createDb, runsRepo } from "@field-agent/db";
 import { createRedis, WORKER_DEFAULTS } from "@field-agent/queue";
@@ -27,11 +30,27 @@ const verifyWorker = new Worker<VerifyJobPayload>(QUEUE.verify, (job) => process
   concurrency: env.WORKER_CONCURRENCY,
 });
 
+/**
+ * Readiness for a process with no HTTP port: once both queues are ready, write
+ * a file the container health check can test. Removed on shutdown, so a
+ * crash-looping worker is "unhealthy", not "up".
+ */
+const READY_FILE = process.env.WORKER_READY_FILE ?? path.join(tmpdir(), "field-agent-worker-ready");
+const ready = new Set<string>();
+function markReady(queue: string): void {
+  ready.add(queue);
+  if (ready.size < 2) return;
+  writeFile(READY_FILE, new Date().toISOString()).catch((err) => log.warn({ err, file: READY_FILE }, "could not write readiness file"));
+}
+
 for (const [name, w] of [
   ["scrape", scrapeWorker],
   ["verify", verifyWorker],
 ] as const) {
-  w.on("ready", () => log.info({ queue: name }, "worker ready"));
+  w.on("ready", () => {
+    log.info({ queue: name }, "worker ready");
+    markReady(name);
+  });
   w.on("error", (err) => log.error({ queue: name, err }, "worker error"));
   w.on("failed", async (job, err) => {
     log.error({ queue: name, jobId: job?.id, attempt: job?.attemptsMade, err: err.message }, "job failed");
@@ -50,6 +69,7 @@ async function shutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
   log.info({ signal }, "shutting down; waiting for the active job (up to 30s)");
+  await unlink(READY_FILE).catch(() => {});
   await Promise.allSettled([scrapeWorker.close(), verifyWorker.close()]);
   await ctx.engine.close().catch(() => {});
   await closeDb().catch(() => {});

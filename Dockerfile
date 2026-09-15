@@ -72,6 +72,8 @@ COPY --from=prod-deps /repo/apps/worker/package.json ./apps/worker/package.json
 COPY --from=installer /repo/apps/worker/dist ./apps/worker/dist
 USER node
 WORKDIR /repo/apps/worker
+# The worker writes this file once both queues are ready (see apps/worker/src/index.ts).
+HEALTHCHECK --interval=10s --timeout=5s --retries=10 CMD test -f /tmp/field-agent-worker-ready
 CMD ["node", "dist/index.js"]
 
 # ---------------------------------------------------------------------------
@@ -86,6 +88,8 @@ COPY --from=installer /repo/apps/worker/dist ./apps/worker/dist
 RUN npm install --no-save --prefix /repo/apps/worker playwright@1.63.0
 ENV SCRAPE_ENGINE=playwright
 WORKDIR /repo/apps/worker
+# The worker writes this file once both queues are ready (see apps/worker/src/index.ts).
+HEALTHCHECK --interval=10s --timeout=5s --retries=10 CMD test -f /tmp/field-agent-worker-ready
 CMD ["node", "dist/index.js"]
 
 # ---------------------------------------------------------------------------
