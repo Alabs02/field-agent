@@ -340,14 +340,15 @@ What is deliberately missing, what it cost in time, and the license.
 
 ### Hours spent
 
-About **18 hours** in total, in four stretches that the commit timestamps show:
+About **16 hours** in total: **12 on the app** and **4 on the company homepage**, in the stretches the commit timestamps show:
 
 | Stretch | What | Hours |
 |---|---|---|
-| Core brief (everything up to the `v1-brief` tag, plus the recon and DESIGN.md written before the first commit) | Scraper, schema, queue, verification, API, UI, Compose | **~4** |
-| Extras | Auth and roles, runs dashboard, the first lander, CI, Railway, drift demo, the hand-off scripts and the worker fix found on deploy | **~6** |
-| Operations dashboard | Overview, schedules, audit trail, notifications, exports, retry and cancel, the politeness additions, their tests and docs | **~5** |
-| Brand and homepage | Engagement Agents' palette and type, the sign-in redesign, the collapsible sidebar, the homepage redesign | **~3** |
+| Core brief (everything up to the `v1-brief` tag) | Scraper, schema, queue, verification, API, UI, Compose | **~3** |
+| Extras | Auth and roles, runs dashboard, CI, Railway, drift demo, the hand-off scripts and the worker fix found on deploy | **~5** |
+| Operations dashboard | Overview, schedules, audit trail, notifications, exports, retry and cancel, the politeness additions, their tests and docs | **~3.5** |
+| Brand pass on the app | Engagement Agents' palette and type, the sign-in redesign, the collapsible sidebar, pointer cursors | **~0.5** |
+| Company homepage | The first lander and its redesign with original artwork and customer proof | **~4** |
 
 The core brief came in under the 10 to 12 hours the brief allowed; everything after the tag is labelled as extra in its commits. The commit history is the trail; nothing was squashed.
 
