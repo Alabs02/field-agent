@@ -185,7 +185,18 @@ railway login                  # once, in your browser
 pnpm railway:deploy            # project, Redis, Postgres, api, worker, web, domains, variables, deploy
 ```
 
-[scripts/railway-deploy.sh](./scripts/railway-deploy.sh) is idempotent and prints the two public URLs and the demo sign-in when it finishes. Set `DATABASE_URL` (a Neon pooled URL) before running it to use Neon instead of Railway's Postgres. Details, variables, and the manual dashboard path are in [railway/README.md](./railway/README.md); the per-service Dockerfiles there are generated from the root `Dockerfile`. The hosted demo URL is added here once it is up.
+[scripts/railway-deploy.sh](./scripts/railway-deploy.sh) is idempotent and prints the two public URLs and the demo sign-in when it finishes. Set `DATABASE_URL` (a Neon pooled URL) before running it to use Neon instead of Railway's Postgres. Details, variables, and the manual dashboard path are in [railway/README.md](./railway/README.md); the per-service Dockerfiles there are generated from the root `Dockerfile`.
+
+**Hosted demo** (auth on, Neon Postgres, 60 s between portal requests):
+
+| | URL |
+|---|---|
+| Lander | https://field-agent.up.railway.app |
+| Product | https://field-agent.up.railway.app/app |
+| API docs | https://field-agent-api.up.railway.app/docs |
+| API health | https://field-agent-api.up.railway.app/health |
+
+Sign in with any account from [Demo accounts](#demo-accounts). The database scales to zero when idle, so the first page after a quiet spell takes about a second longer.
 
 CI runs the same `docker compose up --build --wait` on a clean Ubuntu runner on every push (with `SCRAPE_ON_BOOT=false`, so CI never touches the portal) and checks `/health` on both services plus the API's empty-state and validation responses.
 
