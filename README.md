@@ -1,30 +1,67 @@
-# field-agent
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/ea-logo-dark.png">
+    <img src="docs/brand/ea-logo-light.png" alt="Engagement Agents" width="240">
+  </picture>
+</p>
 
-[![ci](https://github.com/Alabs02/field-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Alabs02/field-agent/actions/workflows/ci.yml)
+<h1 align="center">Promotions Aggregator · Single-Mall MVP</h1>
+
+<p align="center"><code>field-agent</code> · a take-home for Engagement Agents by Alabura</p>
+
+<p align="center">
+  <a href="https://github.com/Alabs02/field-agent/actions/workflows/ci.yml"><img src="https://github.com/Alabs02/field-agent/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
+  <a href="https://field-agent.up.railway.app"><img src="https://img.shields.io/badge/live_demo-field--agent.up.railway.app-e23d6f" alt="live demo"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-341b41" alt="license MIT"></a>
+</p>
 
 An engagement agent that walks the mall for you. It scrapes the promotions a shopping-center portal is running, enriches each one with the brand's hours, website, and social links, re-verifies what it stored against the live site, and serves it all through a typed API and a UI built for the people who act on it.
 
 > Take-home for Engagement Agents: **Promotions Aggregator (Single-Mall MVP)**. Target portal: [The Promenade Shops at Briargate](https://www.thepromenadeshopsatbriargate.com/sales/).
 > Read [DESIGN.md](./DESIGN.md) for the decisions and [ASSUMPTIONS.md](./ASSUMPTIONS.md) for how the brief was interpreted and what the live runs taught.
 
-## What you get
+## Start here
 
-| Piece | Where | What it does |
+| Try it hosted | Run it locally | Read the decisions |
 |---|---|---|
-| `apps/api` | Fastify 5 | Typed REST API. Every response is serialized against the shared Zod schemas. Enqueues jobs; never scrapes inline. |
-| `apps/worker` | BullMQ | Scrape and verification jobs. Retries, backoff, per-job timeout, heartbeat, honest counts. |
-| `apps/web` | Next.js 16 | Promotions (flat and grouped by brand), brands, run health, verification reports. |
-| `packages/shared` | Zod | The one source of truth: scraper output → job payloads → API contract → UI props. |
-| `packages/scraper` | got-scraping + cheerio | Portal adapter, politeness throttle, parsers, and the verification diff. Tested against captured real pages. |
-| `packages/db` | Drizzle + Postgres | Schema, migrations, repositories. |
-| `packages/queue` | BullMQ | Queue factories and job defaults. |
+| Open [field-agent.up.railway.app/app](https://field-agent.up.railway.app/app) and sign in as `reviewer@fieldagent.demo` with the password `FieldAgent-Demo-2026!` (all five accounts are under [Demo accounts](#demo-accounts)). The first page after a quiet spell takes about a second longer: the database scales to zero when idle. | `git clone https://github.com/Alabs02/field-agent.git && cd field-agent && docker compose up --build`. Real promotions appear at http://localhost:3000/app about two minutes later. | [DESIGN.md](./DESIGN.md): what was chosen and why, written before the code. [ASSUMPTIONS.md](./ASSUMPTIONS.md): how the brief was read, and what the live runs taught. |
 
-## Prerequisites
+## Contents
+
+- [Screenshots](#screenshots)
+- [Run it](#run-it): [Prerequisites](#prerequisites) · [Quick start](#quick-start) · [Local development without Docker](#local-development-without-docker)
+- [Use it](#use-it): [Trigger a scrape](#trigger-a-scrape) · [Follow the job](#follow-the-job) · [Run a verification](#run-a-verification) · [View the UI](#view-the-ui) · [Demo accounts](#demo-accounts)
+- [How it is built](#how-it-is-built): [What you get](#what-you-get) · [API surface](#api-surface) · [Politeness](#politeness)
+- [Operate it](#operate-it): [Environment variables](#environment-variables) · [Deploying](#deploying) · [Tests](#tests)
+- [Honesty](#honesty): [Known limitations](#known-limitations) · [Hours spent](#hours-spent) · [License](#license)
+
+## Screenshots
+
+Captured from the hosted demo. Expected files: `docs/screenshots/lander.png`, `promotions.png`, `runs.png`, `verification.png`.
+
+<!-- Un-comment once the four PNGs exist in docs/screenshots/ (1440 px wide, light theme).
+<table>
+  <tr>
+    <td><img src="docs/screenshots/lander.png" alt="Lander at /" width="100%"><br><sub>Lander at <code>/</code>: the verification band reads the last real run.</sub></td>
+    <td><img src="docs/screenshots/promotions.png" alt="Promotions grid" width="100%"><br><sub>Promotions at <code>/app</code>: filters, sort, and the By-brand grouping.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/runs.png" alt="Runs dashboard" width="100%"><br><sub>Runs: per-run outcomes, phase timeline, request counts, errors.</sub></td>
+    <td><img src="docs/screenshots/verification.png" alt="Verification report" width="100%"><br><sub>Verification report: what was checked, what drifted, and why.</sub></td>
+  </tr>
+</table>
+-->
+
+## Run it
+
+Docker Compose brings up Postgres, Redis, the API, the worker, and the UI, and runs the first scrape on boot. Without Docker, Node 22 and pnpm 10 are enough.
+
+### Prerequisites
 
 - Docker 24+ with Compose v2. That is all you need to run it.
 - For development without Docker: Node 22 and pnpm 10 (`corepack enable`).
 
-## Quick start
+### Quick start
 
 ```bash
 git clone https://github.com/Alabs02/field-agent.git
@@ -45,7 +82,21 @@ On first boot, with no completed scrape in the database, the API enqueues one sc
 
 The `migrate` service prints the five demo accounts as it seeds them (`docker compose logs migrate`); they are the same as the table under [Demo accounts](#demo-accounts) below. Locally auth is off, as the brief asks, so nothing needs a sign-in. To try the roles locally: `AUTH_REQUIRED=true docker compose up`.
 
-## Trigger a scrape
+### Local development without Docker
+
+```bash
+pnpm install
+pnpm bootstrap                               # datastores in Docker, .env, migrate, seed, prints the demo accounts
+pnpm dev                                     # api :4000, worker, web :3000
+```
+
+`pnpm bootstrap` starts only Postgres and Redis in Docker (host ports 5433 and 6380), copies `.env.example` to `.env` if you have none, applies migrations, and seeds the portal row and demo accounts. The apps read the root `.env` on `pnpm dev`. Other useful scripts: `pnpm seed` (migrate + seed again), `pnpm demo:credentials`, `pnpm demo:drift` / `pnpm demo:undrift`.
+
+## Use it
+
+The API enqueues jobs and never scrapes inline. Every step below can be done from the UI or with curl.
+
+### Trigger a scrape
 
 ```bash
 curl -s -X POST http://localhost:4000/scrape
@@ -57,7 +108,7 @@ curl -s -X POST http://localhost:4000/scrape
 
 The request returns in well under a second with `202 Accepted`. Calling it again while that run is active returns the same job with `reused: true` and `200`. Pass `{"force": true}` to re-fetch every page even when the sitemap says nothing changed.
 
-## Follow the job
+### Follow the job
 
 ```bash
 curl -s http://localhost:4000/scrape/<jobId>
@@ -83,7 +134,7 @@ Invariant: `attempted = persisted + updated + skipped + failed`. `skipped` means
 
 `effectiveStatus` reconciles the database row with the queue: a run that says `running` while its heartbeat is stale and no worker holds the job is reported as `stalled`.
 
-## Run a verification
+### Run a verification
 
 ```bash
 curl -s -X POST http://localhost:4000/verify
@@ -117,7 +168,7 @@ docker compose exec api node dist/cli.js drift      # edits a few persisted prom
 curl -s -X POST http://localhost:4000/verify
 ```
 
-## View the UI
+### View the UI
 
 - **/** — a marketing lander proposed for Engagement Agents' own site (beyond the brief). The product lives under **/app**.
 
@@ -129,7 +180,37 @@ curl -s -X POST http://localhost:4000/verify
 
 Empty states are honest: this portal lists no per-brand social accounts, so the UI says "Socials not listed on portal" rather than inventing icons.
 
-## API surface
+### Demo accounts
+
+Seeded by `migrate` on `docker compose up`, by `pnpm bootstrap`, and on every Railway deploy. The same table is printed to the terminal each time (`pnpm demo:credentials` prints it again). Password for all five: `FieldAgent-Demo-2026!` (override with `SEED_DEMO_PASSWORD`). Sign in at `/login`; the login page also lists them.
+
+| Email | Role | Can |
+|---|---|---|
+| `super.admin@fieldagent.demo` | Super admin | read · scrape · verify · admin (queue dashboard, users) |
+| `operations@fieldagent.demo` | Operations | read · scrape · verify |
+| `data.engineer@fieldagent.demo` | Data engineer | read · scrape · verify |
+| `account.manager@fieldagent.demo` | Account manager | read |
+| `reviewer@fieldagent.demo` | Reviewer | read |
+
+Roles exist only when `AUTH_REQUIRED=true` (the hosted demo, or `AUTH_REQUIRED=true docker compose up` locally). With it off, the brief's default, the API and the UI are open and the login page says so.
+
+## How it is built
+
+A pnpm and Turborepo monorepo where the shared Zod schemas are the single contract from scraper output to UI props.
+
+### What you get
+
+| Piece | Where | What it does |
+|---|---|---|
+| `apps/api` | Fastify 5 | Typed REST API. Every response is serialized against the shared Zod schemas. Enqueues jobs; never scrapes inline. |
+| `apps/worker` | BullMQ | Scrape and verification jobs. Retries, backoff, per-job timeout, heartbeat, honest counts. |
+| `apps/web` | Next.js 16 | Promotions (flat and grouped by brand), brands, run health, verification reports. |
+| `packages/shared` | Zod | The one source of truth: scraper output → job payloads → API contract → UI props. |
+| `packages/scraper` | got-scraping + cheerio | Portal adapter, politeness throttle, parsers, and the verification diff. Tested against captured real pages. |
+| `packages/db` | Drizzle + Postgres | Schema, migrations, repositories. |
+| `packages/queue` | BullMQ | Queue factories and job defaults. |
+
+### API surface
 
 | Method | Path | Notes |
 |---|---|---|
@@ -149,7 +230,15 @@ Empty states are honest: this portal lists no per-brand social accounts, so the 
 
 Errors always use one envelope: `{ error: { code, message, details? }, requestId }`.
 
-## Environment variables
+### Politeness
+
+One request at a time per host, spaced by `SCRAPE_MIN_DELAY_MS` through a Redis lock shared by every worker and by both job types; `robots.txt` Disallow honored; an honest User-Agent with a contact address; the sitemap read first so unchanged pages are skipped; conditional requests when the server supports them; retailer and affiliate links stored but never followed. Each run records the number of requests it made.
+
+## Operate it
+
+Everything configurable is an environment variable with a documented default. One script deploys the whole stack to Railway.
+
+### Environment variables
 
 All of them are documented inline in [.env.example](./.env.example). The ones worth knowing:
 
@@ -164,21 +253,7 @@ All of them are documented inline in [.env.example](./.env.example). The ones wo
 | `AUTH_REQUIRED` | `false` | The brief wants the local API open. `true` gates mutations and the UI behind sign-in. |
 | `SNAPSHOT_MODE` | `changed` | Store raw HTML on first sight and whenever it changes. |
 
-## Demo accounts
-
-Seeded by `migrate` on `docker compose up`, by `pnpm bootstrap`, and on every Railway deploy. The same table is printed to the terminal each time (`pnpm demo:credentials` prints it again). Password for all five: `FieldAgent-Demo-2026!` (override with `SEED_DEMO_PASSWORD`). Sign in at `/login`; the login page also lists them.
-
-| Email | Role | Can |
-|---|---|---|
-| `super.admin@fieldagent.demo` | Super admin | read · scrape · verify · admin (queue dashboard, users) |
-| `operations@fieldagent.demo` | Operations | read · scrape · verify |
-| `data.engineer@fieldagent.demo` | Data engineer | read · scrape · verify |
-| `account.manager@fieldagent.demo` | Account manager | read |
-| `reviewer@fieldagent.demo` | Reviewer | read |
-
-Roles exist only when `AUTH_REQUIRED=true` (the hosted demo, or `AUTH_REQUIRED=true docker compose up` locally). With it off, the brief's default, the API and the UI are open and the login page says so.
-
-## Deploying
+### Deploying
 
 ```bash
 railway login                  # once, in your browser
@@ -198,19 +273,9 @@ pnpm railway:deploy            # project, Redis, Postgres, api, worker, web, dom
 
 Sign in with any account from [Demo accounts](#demo-accounts). The database scales to zero when idle, so the first page after a quiet spell takes about a second longer.
 
-CI runs the same `docker compose up --build --wait` on a clean Ubuntu runner on every push (with `SCRAPE_ON_BOOT=false`, so CI never touches the portal) and checks `/health` on both services plus the API's empty-state and validation responses.
+CI runs the same `docker compose up --build --wait` on a clean Ubuntu runner on every push (with `SCRAPE_ON_BOOT=false`, so CI never touches the portal) and checks `/health` on both services, that the worker is healthy, and the API's empty-state and validation responses.
 
-## Local development without Docker
-
-```bash
-pnpm install
-pnpm bootstrap                               # datastores in Docker, .env, migrate, seed, prints the demo accounts
-pnpm dev                                     # api :4000, worker, web :3000
-```
-
-`pnpm bootstrap` starts only Postgres and Redis in Docker (host ports 5433 and 6380), copies `.env.example` to `.env` if you have none, applies migrations, and seeds the portal row and demo accounts. The apps read the root `.env` on `pnpm dev`. Other useful scripts: `pnpm seed` (migrate + seed again), `pnpm demo:credentials`, `pnpm demo:drift` / `pnpm demo:undrift`.
-
-## Tests
+### Tests
 
 ```bash
 pnpm test          # vitest across packages (parsers against captured real pages, diff, throttle, contracts)
@@ -220,11 +285,11 @@ pnpm lint
 
 The scraper tests run against HTML captured from the portal (`packages/scraper/test/fixtures`), so a structure change on the site shows up as a failing test with a diffable fixture.
 
-## Politeness
+## Honesty
 
-One request at a time per host, spaced by `SCRAPE_MIN_DELAY_MS` through a Redis lock shared by every worker and by both job types; `robots.txt` Disallow honored; an honest User-Agent with a contact address; the sitemap read first so unchanged pages are skipped; conditional requests when the server supports them; retailer and affiliate links stored but never followed. Each run records the number of requests it made.
+What is deliberately missing, what it cost in time, and the license.
 
-## Known limitations
+### Known limitations
 
 - Verification diffs promotion fields only; brand fields are refreshed by scrape, not diffed.
 - Page-number pagination; cursor pagination is the multi-portal answer.
@@ -232,10 +297,14 @@ One request at a time per host, spaced by `SCRAPE_MIN_DELAY_MS` through a Redis 
 - No Playwright UI tests; the compose smoke test in CI covers the boot path.
 - One portal, hard-coded by design.
 
-## Hours spent
+### Hours spent
 
 Core brief (everything up to the `v1-brief` tag): **__ hours**. Extras beyond the brief (auth and roles, runs dashboard, lander, CI, Railway config, drift demo): **__ hours**. The commit history is the trail; nothing was squashed.
 
-## License
+### License
 
 MIT
+
+---
+
+*Engagement Agents and the Engagement Agents logo belong to Engagement Agents and appear here only to identify the company this take-home was prepared for. This repository is the independent work of Alabura ([Alabs02](https://github.com/Alabs02)) and is not affiliated with or endorsed by Engagement Agents.*
